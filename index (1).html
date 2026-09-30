@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Affiliate Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --bg:#0c0c0c; --panel:#1b1b1b; --panel2:#222222; --line:#2c2c2c;
+  --text:#e8e9ea; --muted:#8b9098; --accent:#ff5a2e; --accent2:#ffb199;
+  --good:#2ee879; --warn:#ffb020; --bad:#ff4444; --bad2:#ff6f61;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px);scrollbar-width:thin;scrollbar-color:#3a3a3a var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100%}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#3a3a3a;border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#4a4a4a}
+::-webkit-scrollbar-corner{background:var(--bg)}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+h1{font-size:20px;margin:0}
+.sub{color:var(--muted);font-size:13px;margin-top:2px}
+header.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.logo{display:flex;gap:12px;align-items:center}
+.logo .mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#c73e14);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:15px;flex:none}
+
+/* Upload screen */
+#upload{max-width:640px;margin:60px auto}
+#upload h2{font-size:18px;margin:0 0 4px}
+#upload p{color:var(--muted);font-size:13px;line-height:1.5}
+.field{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-top:14px}
+.field label{display:block;font-size:13px;font-weight:600;margin-bottom:4px}
+.field .hint{color:var(--muted);font-size:12px;margin-bottom:10px}
+input[type=file]{color:var(--muted);font-size:13px;width:100%}
+.filecount{font-size:12px;color:var(--good);margin-top:6px}
+button.primary{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;margin-top:18px;width:100%}
+button.primary:disabled{opacity:.4;cursor:not-allowed}
+button.ghost{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
+.err{color:var(--bad2);font-size:13px;margin-top:10px}
+
+.wssection{margin-top:22px}
+.wssection .hint{color:var(--muted);font-size:12px;margin:2px 0 14px}
+.wscard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+.wscard-head{display:flex;align-items:center;gap:12px}
+.wsnum{width:22px;height:22px;border-radius:50%;background:rgba(255,90,46,.15);color:var(--accent);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.wsnum.small{width:18px;height:18px;font-size:11px}
+.wsname{flex:1;background:transparent;border:none;border-bottom:1px solid transparent;color:var(--text);font-size:14px;font-weight:600;padding:4px 0;min-width:0}
+.wsname:focus{outline:none;border-bottom-color:var(--accent)}
+.wsname::placeholder{color:var(--muted);font-weight:400}
+.wsstatus{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.chevbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:4px}
+.rmwsbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px}
+.rmwsbtn:hover{color:var(--bad2)}
+.wscard-body{margin-top:16px}
+.sectionlabel{font-size:10.5px;font-weight:700;letter-spacing:.05em;color:var(--muted);margin-bottom:10px}
+.uploadrow{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.uploadicon{width:36px;height:36px;border-radius:8px;background:rgba(255,90,46,.12);color:var(--accent);display:flex;align-items:center;justify-content:center;flex:none;font-size:16px}
+.uploadinfo{flex:1;min-width:0}
+.uploadtitle{font-size:13px;font-weight:600}
+.uploadsub{font-size:11px;color:var(--muted);margin-top:2px}
+.filebtn{background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;flex:none;display:inline-block}
+.filebtn:hover{background:rgba(255,90,46,.1)}
+.filebtn.small{padding:6px 12px;font-size:12px}
+.filestatus{font-size:11.5px;color:var(--good);margin-top:6px;padding-left:2px}
+.acctrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.acctrow:first-of-type{border-top:none}
+.acctstatus{font-size:11.5px;color:var(--muted);white-space:nowrap;min-width:60px;text-align:right}
+.rmbtn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;flex:none}
+.rmbtn:hover{color:var(--bad2)}
+.dashedbtn{width:100%;background:transparent;border:1px dashed var(--line);color:var(--muted);border-radius:10px;padding:11px;font-size:12.5px;cursor:pointer;margin-top:10px}
+.dashedbtn:hover{border-color:var(--accent);color:var(--accent)}
+.dashedbtn.small{margin-top:12px;padding:9px}
+.infobox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:16px;font-size:12px;color:var(--muted);line-height:1.7}
+.infobox b{color:var(--text)}
+.infobox div{margin-bottom:6px}
+.infobox div:last-child{margin-bottom:0}
+
+/* Dashboard */
+#dash{display:none}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{padding:9px 14px;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.tab.active{color:var(--text);border-color:var(--accent)}
+.panel{display:none}
+.panel.active{display:block}
+
+.progress-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+.progress-top{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:8px}
+.progress-top b{color:var(--text);font-weight:600}
+.bar{height:8px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.bar > div{height:100%;background:linear-gradient(90deg,var(--good),#7ee8a8);transition:background .15s}
+.bar > div.warn{background:linear-gradient(90deg,var(--warn),#ffd27e)}
+.bar > div.bad{background:linear-gradient(90deg,var(--bad2),#ff9a8f)}
+.progress-stats{display:flex;gap:24px;font-size:13px;margin-top:10px;flex-wrap:wrap;color:var(--muted)}
+.progress-stats b{color:var(--text);font-weight:600}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;transition:border-color .15s,transform .15s}
+.card:hover{border-color:#3a3a3a}
+.card .lbl{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.qmark{display:inline-block;vertical-align:middle;width:14px;height:14px;border-radius:50%;border:1px solid var(--muted);color:var(--muted);font-size:10px;line-height:12px;text-align:center;cursor:help;flex:0 0 auto}
+th .qmark{margin-left:3px}
+.helptip{position:fixed;display:none;background:#161616;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:11.5px;color:#ddd;width:220px;line-height:1.5;z-index:999;box-shadow:0 4px 14px rgba(0,0,0,.4);pointer-events:none}
+.card .val{font-size:22px;font-weight:600;margin-top:4px}
+.foot{font-size:11px;color:var(--muted)}
+.card .foot{margin-top:4px}
+.pos{color:var(--good)} .neg{color:var(--bad2)} .accentv{color:var(--accent2)}
+
+.section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.section.flat{background:transparent;border:none;padding:0;margin-bottom:24px}
+.section h3{font-size:13px;color:var(--muted);margin:0 0 14px;font-weight:600}
+.tablehint{font-size:10.5px;color:#6a6a6a;margin:-9px 0 12px}
+.sarrow{display:inline-block;width:10px;font-size:9px;color:var(--muted);margin-left:2px}
+.camprow{cursor:pointer}
+.camprow:hover td{background:var(--panel2)}
+.camp-breakdown>td,.attrib-detail>td{padding:0;background:#161616}
+.camp-breakdown .bdwrap,.attrib-detail .bdwrap{padding:10px 16px 16px 34px}
+.camp-breakdown .bdtitle,.attrib-detail .bdtitle{font-size:10px;font-weight:700;letter-spacing:.04em;color:#aab0ba;margin-bottom:8px}
+.bdmeta{font-size:10.5px;color:#aab0ba;margin-bottom:10px;line-height:1.6}
+.bdmeta b{color:var(--text);font-weight:600}
+.rekpopup{position:fixed;display:none;background:#161616;border:1px solid var(--line);border-radius:12px;padding:16px 18px;width:380px;max-height:80vh;overflow-y:auto;z-index:1000;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+.rekpopup .rekwrap{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.rekwrap{margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.rekhead{font-size:14px;font-weight:700;margin-bottom:10px}
+.rekarahan{border-radius:10px;padding:13px 15px;margin-bottom:14px}
+.reklabel{font-size:10.5px;font-weight:700;letter-spacing:.05em;margin-bottom:6px}
+.rektext{font-size:12.5px;font-weight:600;line-height:1.55;color:var(--text)}
+.reklist{margin:0 0 14px;padding-left:18px;font-size:12px;color:var(--muted);line-height:1.85}
+.reklist li{margin-bottom:1px}
+.reksumber{border-radius:10px;padding:13px 15px;margin-bottom:14px}
+.rekfoot{font-size:11.5px;color:var(--muted)}
+.camp-breakdown table,.attrib-detail table{font-size:10.5px;table-layout:auto}
+.camp-breakdown table th,.attrib-detail table th{padding:6px 10px;font-weight:600;color:#9aa0a8;cursor:default}
+.camp-breakdown table td,.attrib-detail table td{padding:7px 10px;background:transparent;color:#d8dade}
+.donutholder{position:relative;flex:0 0 auto}
+.donutcenter{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;color:var(--muted);pointer-events:none;line-height:1.3}
+.donutseg{cursor:pointer;transition:opacity .12s}
+.donutseg:hover{opacity:.8}
+.donutlegendcol{display:flex;flex-direction:column;gap:8px;min-width:170px}
+.donutrow{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.donutrow i{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
+.donutrow .lb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.donutrow b{color:var(--text);margin-left:auto;font-weight:600;padding-left:10px;flex:0 0 auto}
+.bars{display:flex;align-items:flex-end;gap:40px;height:180px;padding:0 10px}
+.barcol{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1;height:100%;justify-content:flex-end}
+.barcol .b{width:60%;border-radius:6px 6px 0 0;min-height:2px}
+.barcol .amt{font-size:13px;font-weight:600}
+.barcol .name{font-size:12px;color:var(--muted)}
+.gaphead{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.gaplegend{display:flex;gap:16px;font-size:11.5px;color:var(--muted);flex:0 0 auto;padding-top:2px}
+.gaplegend .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.gaplegend .dot.same{background:var(--good)}
+.gaplegend .dot.cookie{background:var(--warn)}
+.gaprow{display:grid;grid-template-columns:132px 1fr 44px 48px;align-items:center;gap:14px;padding:5px 8px;border-radius:8px;transition:background .12s}
+.gaprow:hover{background:var(--panel2)}
+.gaprow.today{background:rgba(46,232,121,.07)}
+.gaplabel{font-size:12px;color:var(--muted)}
+.gaprow.today .gaplabel{color:var(--text);font-weight:600}
+.gaptrack{height:18px;background:var(--panel2);border-radius:5px;overflow:hidden}
+.gapfill{height:100%;border-radius:5px;background:linear-gradient(90deg,#c78a1f,var(--warn));transition:width .35s ease}
+.gapfill.same{background:linear-gradient(90deg,#1f9d5c,var(--good))}
+.gapcount{font-size:13px;font-weight:600;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+.gappct{font-size:11.5px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--muted);font-weight:600;padding:14px 18px;font-size:11px;letter-spacing:.02em;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;position:relative}
+td{padding:14px 18px;border-bottom:1px solid var(--line);white-space:nowrap;line-height:1.6}
+tr:hover td{background:var(--panel2)}
+#attribTable th:nth-child(2),#attribTable td:nth-child(2){padding-left:10px;padding-right:8px;max-width:80px;overflow:hidden;text-overflow:ellipsis}
+#attribTable th:nth-child(3),#attribTable td:nth-child(3){padding-left:8px;padding-right:10px;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+#attribTable th:nth-child(4){padding-left:16px}
+#attribTable td:nth-child(4){padding-left:16px}
+#attribTable th:nth-child(11),#attribTable td:nth-child(11){padding-right:10px}
+#attribTable th:nth-child(12),#attribTable td:nth-child(12){padding-left:10px}
+.tablewrap{overflow-x:auto;overflow-y:visible;scrollbar-width:thin;scrollbar-color:#3a3a3a transparent}
+.tablewrap::-webkit-scrollbar{height:7px}
+.tablewrap::-webkit-scrollbar-track{background:transparent}
+.tablewrap::-webkit-scrollbar-thumb{background:#3a3a3a;border-radius:4px}
+.tablewrap::-webkit-scrollbar-thumb:hover{background:#4a4a4a}
+.tag{padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600}
+.tag.scale{background:rgba(62,207,126,.15);color:var(--good)}
+.tag.tahan{background:rgba(242,184,75,.15);color:var(--warn)}
+.tag.kill{background:rgba(255,91,91,.15);color:var(--bad2)}
+
+.top-actions{display:flex;gap:8px;align-items:center}
+.wsrow{display:flex;gap:8px;flex-wrap:wrap}
+select,.field input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:9px 10px;font-size:13px}
+select{flex:1;min-width:140px}
+.field input[type=text]{flex:1;min-width:140px}
+.histitem{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.histitem:last-child{border-bottom:none}
+.histitem .meta{color:var(--muted);font-size:12px;margin-top:2px}
+.histempty{color:var(--muted);font-size:13px;padding:6px 0}
+.wsbadge{font-size:12px;color:var(--muted);margin-top:4px}
+.funnelgrid{display:grid;grid-template-columns:1.3fr 1fr;gap:20px;align-items:start}
+@media (max-width:760px){.funnelgrid{grid-template-columns:1fr}}
+.funnelbox{background:#161616;border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.funnelrow{margin-bottom:18px}
+.funnelrow:last-child{margin-bottom:0}
+.funnelrow .top{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;font-weight:600;margin-bottom:7px}
+.funnelrow .top .pct{font-size:11px;font-weight:700;color:#ff5b5b;background:rgba(255,91,91,.12);padding:2px 7px;border-radius:5px;margin-left:8px}
+.funnelrow .foot{font-size:11px;color:var(--muted);margin-top:5px}
+.funnelbar{height:7px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.funnelbar>div{height:100%;border-radius:6px}
+.funnel2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:0}
+.funnel2 .card{background:#161616;padding:13px 14px}
+.funnel2 .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.04em}
+.funnel2 .val{font-size:18px}
+.funnel2 .foot{font-size:10.5px}
+.viewbtn.active{border-color:var(--accent);color:var(--accent)}
+#wsBreakdown{display:none}
+.ovctrl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.atribfilter{display:flex;gap:14px;flex-wrap:wrap;align-items:end;margin:12px 0 14px}
+.atribfilter label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted)}
+.atribfilter input{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;width:150px}
+.ovctrl label{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.ovctrl input[type=date],.ovctrl input[type=text],.ovctrl select{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:6px 8px;font-size:12px}
+.pill{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer}
+.pill.active{border-color:var(--accent);color:var(--accent)}
+.pill b{font-weight:700}
+.banner{background:rgba(91,143,249,.08);border:1px solid rgba(91,143,249,.25);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--muted);margin-bottom:10px}
+.banner b{color:var(--text)}
+.orderscount{font-size:12px;color:var(--muted);margin-left:auto}
+.bars.multi{gap:14px;flex-wrap:wrap}
+.bars.multi .barcol{flex:0 0 44px}
+.sensored .camp-name{filter:blur(5px)}
+.chart-head{height:26px;margin-bottom:12px}
+.chart-caption{height:18px;margin-top:6px;text-align:center;font-size:12px;color:var(--muted)}
+.chartlegend{display:flex;gap:14px;font-size:12px;color:var(--muted)}
+.chartlegend .lg{display:flex;align-items:center;gap:6px}
+.chartlegend .lg i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.chartarea{position:relative;height:190px;margin-left:58px;margin-top:6px}
+.grid-lines{position:absolute;inset:0}
+.gline{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
+.gline span{position:absolute;left:-58px;top:-8px;font-size:11px;color:var(--muted);width:50px;text-align:right}
+.bars2{position:relative;display:flex;align-items:flex-end;height:100%;gap:16px;padding:0 6px;overflow-x:auto}
+.bars2.few{justify-content:center;overflow-x:visible}
+.bars2.many{justify-content:flex-start}
+.barcol2{height:100%;display:flex;align-items:flex-end;justify-content:center;cursor:pointer}
+.bars2.few .barcol2{flex:1 1 0;max-width:220px}
+.bars2.many .barcol2{flex:0 0 auto;width:60px}
+.barlabels{position:relative;display:flex;gap:16px;padding:0 6px;margin-left:58px;margin-top:8px}
+.barlabels.few{justify-content:center;overflow-x:visible}
+.barlabels.many{justify-content:flex-start;overflow-x:hidden}
+.barlabelcol{font-size:11px;color:var(--muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barlabels.few .barlabelcol{flex:1 1 0;max-width:220px}
+.barlabels.many .barlabelcol{flex:0 0 auto;width:60px}
+.b2{width:56%;border-radius:5px 5px 0 0;min-height:2px;transition:opacity .15s}
+.barcol2:hover .b2{opacity:.78}
+.barcol2 .name{font-size:11px;color:var(--muted);margin-top:6px;white-space:nowrap}
+.charttip{position:fixed;background:#161616;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;color:#fff;pointer-events:none;display:none;z-index:999;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.charttip .tt-h{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px}
+.charttip .tt-row{display:flex;align-items:center;gap:6px}
+.charttip .tt-row i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.app{display:flex;align-items:flex-start;min-height:100vh}
+.sidebar{width:168px;flex:0 0 168px;background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:18px;position:sticky;top:0;height:100vh;box-sizing:border-box}
+.sidebar .logo{gap:8px}
+.navlist{display:flex;flex-direction:column;gap:2px}
+.navitem{padding:9px 10px;border-radius:8px;font-size:12.5px;color:var(--muted);cursor:pointer}
+.navitem.active{background:var(--panel2);color:var(--text)}
+.navitem:hover{color:var(--text)}
+.sidebar-spacer{flex:1}
+.main{flex:1;min-width:0;padding:24px 20px 60px;max-width:100%;box-sizing:border-box}
+</style>
+</head>
+<body>
+
+<div id="upload" class="wrap">
+  <header class="top">
+    <div class="logo">
+      <div class="mark">A</div>
+      <div><h1>Affiliate Dashboard</h1><div class="sub">Shopee × Meta Ads Tracker</div></div>
+    </div>
+    <button class="ghost" onclick="alert('1. Buat workspace, isi nama (contoh: Aisyah Store).\n2. Upload 1 CSV Meta Ads untuk workspace itu.\n3. Kasih nama tiap akun Shopee lalu upload CSV komisinya (bisa lebih dari 1 akun Shopee per workspace).\n4. Klik + Tambah Workspace kalau punya akun Meta lain.\n5. Klik Mulai Analisa.\n\nData diproses di browser kamu, tidak dikirim ke server manapun.')">? Panduan</button>
+  </header>
+
+  <div class="wssection">
+    <div style="font-size:15px;font-weight:700;margin-bottom:2px">Workspace</div>
+    <div class="hint">1 workspace = 1 akun Meta + akun Shopee yang dipairing</div>
+    <div id="wsCards"></div>
+    <button class="dashedbtn" onclick="addWorkspace()">+ Tambah Workspace (Akun Meta baru)</button>
+  </div>
+
+  <div class="infobox">
+    <div><b>Workspace:</b> Tiap workspace punya 1 akun Meta + akun Shopee yang dipasangin. Data antar workspace dipisah — ROAS dan spend nggak akan nyampur.</div>
+    <div><b>Tag_link1:</b> Isi dengan nama campaign Meta saat buat link Shopee untuk tracking ROAS per-campaign.</div>
+    <div><b>PPN:</b> Set di topbar dashboard setelah upload.</div>
+    <div><b>Catatan komisi:</b> Angka di CSV affiliate (Komisi Bersih) bisa lebih rendah dari dashboard performa Shopee (Komisi Kotor) — ini normal. Shopee butuh waktu untuk memproses dan memverifikasi order sebelum masuk ke CSV. Selisih akan mengecil saat order makin banyak yang selesai.</div>
+  </div>
+
+  <button class="primary" id="processBtn" disabled onclick="processFiles()">Mulai Analisa →</button>
+  <div class="err" id="uploadErr"></div>
+
+  <div class="field">
+    <label>Sesi Tersimpan <span style="color:var(--muted);font-weight:400">(opsional)</span></label>
+    <div class="hint">Pilih sesi lama untuk memisahkan histori, atau biarkan default. Snapshot terakhir bisa dipulihkan di bawah tanpa upload ulang.</div>
+    <div class="wsrow">
+      <select id="wsSelect" onchange="onWorkspaceChange()"></select>
+      <input type="text" id="wsNewName" placeholder="Nama sesi baru">
+      <button class="ghost" onclick="createWorkspace()">+ Buat</button>
+    </div>
+    <div class="wsbadge" id="wsBadge"></div>
+    <div id="historyList" style="margin-top:10px"><div class="histempty">Belum ada history untuk sesi ini.</div></div>
+  </div>
+</div>
+
+<div id="dash" class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="mark">A</div>
+      <div><h1>Affiliate</h1><div class="sub">Dashboard</div></div>
+    </div>
+    <nav class="navlist">
+      <div class="navitem active" data-tab="overview">Overview</div>
+      <div class="navitem" data-tab="campaigns">Campaigns</div>
+      <div class="navitem" data-tab="produk">Produk</div>
+      <div class="navitem" data-tab="funnel">Funnel</div>
+      <div class="navitem" data-tab="atribusi">Atribusi</div>
+    </nav>
+    <div class="sidebar-spacer"></div>
+    <button class="ghost" style="width:100%" onclick="resetAll()">Ganti file</button>
+  </aside>
+  <main class="main">
+  <div class="wsrow" style="margin-bottom:14px">
+    <button class="ghost viewbtn active" data-view="single" onclick="setViewMode('single')">Workspace ini</button>
+    <button class="ghost viewbtn" data-view="all" onclick="setViewMode('all')">Gabungan Semua Workspace</button>
+  </div>
+
+  <div class="ovctrl">
+    <label>Dari <input type="date" id="dateFrom" onchange="refreshOverview()"></label>
+    <label>s/d <input type="date" id="dateTo" onchange="refreshOverview()"></label>
+    <button class="ghost" onclick="setRangeAll()">Semua</button>
+    <button class="ghost" onclick="setRangeLatest()">Terbaru</button>
+    <button class="ghost" id="sensorBtn" onclick="toggleSensor()" title="Sensor nama campaign / tag link & angka">👁 Sensor</button>
+    <label>PPN Meta <select id="ppnSel" onchange="refreshOverview()"><option value="0">Tanpa PPN</option><option value="1">Dengan PPN</option></select></label>
+    <label id="ppnPctWrap" style="display:none">% PPN <input type="number" id="ppnPct" value="11" min="0" step="0.1" style="width:60px" onchange="refreshOverview()"></label>
+    <label>Target/hari <input type="text" id="targetInput" value="500000" onchange="refreshOverview()" style="width:90px"></label>
+    <span class="orderscount" id="orderscount"></span>
+  </div>
+  <div class="section" style="padding:14px 18px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted);margin-bottom:10px">FILTER SUMBER TRAFIK</div>
+    <div class="ovctrl" id="platformPills"></div>
+  </div>
+
+  <div class="banner">ℹ️ Meta CSV terdeteksi dalam <b>Bahasa Indonesia</b> — semua kolom terbaca normal.</div>
+  <div class="banner">ℹ️ Kenapa komisi di sini beda dengan dashboard Shopee? — Ini normal. CSV ini pakai <b>Komisi Bersih</b> (sudah diproses), sedangkan dashboard Shopee nampilkan <b>Komisi Kotor</b> (belum final).</div>
+
+  <div class="progress-card">
+    <div class="progress-top"><span><b id="progDate">—</b> · Net <b id="progLabel">—</b></span><b id="progPct" style="color:var(--good)">0%</b></div>
+    <div class="bar"><div id="progBar" style="width:0%"></div></div>
+    <div class="progress-stats">
+      <span>Spend: <b id="pSpend">—</b></span>
+      <span>Komisi: <b id="pKomisi">—</b></span>
+      <span>ROAS: <b id="pRoas">—</b></span>
+      <span>ROI: <b id="pRoi">—</b></span>
+      <span>Orders: <b id="pOrders">—</b></span>
+    </div>
+  </div>
+
+  <div class="grid" id="kpiGrid"></div>
+
+  <div id="panel-overview" class="panel active">
+    <div class="grid" id="wsBreakdown"></div>
+    <div class="section" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div><h3>SPEND VS KOMISI</h3><div id="spendVsKomisi"></div></div>
+      <div><h3>NET PROFIT HARIAN</h3><div id="netProfitHarian"></div></div>
+    </div>
+    <div class="section">
+      <h3>REKAP HARIAN</h3>
+      <div class="tablewrap">
+        <table><thead><tr>
+          <th>Tanggal</th>
+          <th>Spend<span class="qmark" onmouseenter="showHelp(event,'Biaya iklan Meta pada tanggal tersebut.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+          <th>Komisi<span class="qmark" onmouseenter="showHelp(event,'Komisi affiliate Shopee yang didapat pada tanggal tersebut.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+          <th>Net<span class="qmark" onmouseenter="showHelp(event,'Komisi − Spend. Positif berarti untung, negatif berarti rugi.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+          <th>ROAS<span class="qmark" onmouseenter="showHelp(event,'Komisi ÷ Spend. ROAS 1x = balik modal, di atas 2x tergolong bagus.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+          <th>ROI<span class="qmark" onmouseenter="showHelp(event,'(Komisi − Spend) ÷ Spend, dalam persen. ROI 0% = balik modal.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+          <th>EPC<span class="qmark" onmouseenter="showHelp(event,'Earning per Click: Komisi ÷ Meta Clicks. Hijau jika EPC lebih besar dari CPC.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+          <th>Meta Clicks<span class="qmark" onmouseenter="showHelp(event,'Jumlah klik iklan Meta pada tanggal tersebut.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+          <th>LP Views<span class="qmark" onmouseenter="showHelp(event,'Jumlah kunjungan ke landing page dari klik iklan.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+          <th>LP Rate<span class="qmark" onmouseenter="showHelp(event,'LP Views ÷ Meta Clicks, dalam persen. Makin tinggi makin bagus.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+          <th>Orders<span class="qmark" onmouseenter="showHelp(event,'Jumlah pesanan unik dari link affiliate pada tanggal tersebut.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+          <th>Zero%<span class="qmark" onmouseenter="showHelp(event,'Persentase item dengan komisi Rp0 (dibatalkan/ditolak Shopee). Makin tinggi makin buruk.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+        </tr></thead><tbody id="dailyBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-campaigns" class="panel">
+    <div class="section">
+      <h3>PERFORMA CAMPAIGN</h3>
+      <div class="tablehint">Klik header kolom untuk sortir · klik baris campaign untuk lihat breakdown harian</div>
+      <div class="tablewrap">
+        <table id="campTable">
+          <thead><tr>
+            <th data-k="campaign">Campaign<span class="sarrow" id="arrow-campaign"></span></th>
+            <th data-k="spend">Spend<span class="qmark" onmouseenter="showHelp(event,'Biaya iklan Meta per campaign pada periode ini.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="arrow-spend"></span></th>
+            <th data-k="clicks">Clicks<span class="sarrow" id="arrow-clicks"></span></th>
+            <th data-k="ctr">CTR<span class="qmark" onmouseenter="showHelp(event,'Click-Through Rate: Klik ÷ Impresi, dalam persen.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="arrow-ctr"></span></th>
+            <th data-k="cpc">CPC (Rp)<span class="qmark" onmouseenter="showHelp(event,'Cost per Click: Spend ÷ Klik, rata-rata biaya per klik.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="arrow-cpc"></span></th>
+            <th data-k="cpm">CPM (Rp)<span class="qmark" onmouseenter="showHelp(event,'Cost per Mille: Spend ÷ Impresi × 1000, biaya per 1000 tayangan.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="arrow-cpm"></span></th>
+          </tr></thead>
+          <tbody id="campBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-produk" class="panel">
+    <div class="section flat">
+      <h3>KOMISI PER CHANNEL</h3>
+      <div class="grid" id="channelCards" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"></div>
+    </div>
+    <div class="section flat" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card" style="padding:16px">
+        <h3>KOMISI PER KATEGORI</h3>
+        <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+          <div id="donutKategori"></div>
+          <div id="legendKategori" style="flex:1;min-width:150px"></div>
+        </div>
+      </div>
+      <div class="card" style="padding:16px">
+        <h3>PLATFORM KLIK</h3>
+        <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+          <div id="donutPlatform"></div>
+          <div id="legendPlatform" style="flex:1;min-width:150px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="section flat" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card" style="padding:16px">
+        <div class="lbl">Zero commission rate</div>
+        <div class="val" id="zeroRateVal" style="color:var(--bad2)">—</div>
+        <div class="foot" id="zeroRateFoot"></div>
+      </div>
+      <div class="card" style="padding:16px">
+        <div class="lbl">Avg komisi / item (non-zero)</div>
+        <div class="val" id="avgKomisiVal">—</div>
+        <div class="foot" id="avgKomisiFoot"></div>
+      </div>
+    </div>
+    <div class="section gapsection">
+      <div class="gaphead">
+        <div>
+          <h3 style="margin-bottom:2px">DISTRIBUSI TANGGAL KLIK</h3>
+          <div class="hint">Berapa hari sebelum order, klik iklan/link affiliate-nya terjadi &middot; cookie Shopee bertahan 7 hari &middot; seluruh komisi</div>
+        </div>
+        <div class="gaplegend">
+          <span><i class="dot same"></i>Klik hari yang sama</span>
+          <span><i class="dot cookie"></i>Cookies</span>
+        </div>
+      </div>
+      <div id="gapDistWrap"></div>
+      <div class="foot" id="gapDistFoot" style="margin-top:12px"></div>
+    </div>
+    <div class="section">
+      <h3>TOP 15 PRODUK BY KOMISI <span style="font-weight:400;text-transform:none;letter-spacing:0">(pembeli lama, exclude pembeli baru & dibatalkan)</span></h3>
+      <div class="tablewrap">
+        <table><thead><tr>
+          <th>Produk</th><th>Kategori</th><th>Komisi (Rp)</th><th>Items</th><th>Avg / Item</th>
+        </tr></thead><tbody id="produkBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-funnel" class="panel">
+    <div class="section">
+      <h3>FUNNEL KONVERSI</h3>
+      <div class="funnelgrid">
+        <div id="funnelBars"></div>
+        <div class="funnel2" id="funnelMetrics"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-atribusi" class="panel">
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+        <h3>ATRIBUSI PER TAG</h3>
+        <div class="tablehint">Klik baris untuk lihat detail produk per tag</div>
+      </div>
+      <div class="atribfilter">
+        <label>Min Spend<input type="text" id="attrMinSpend" placeholder="contoh 60000"></label>
+        <label>Max Spend<input type="text" id="attrMaxSpend" placeholder="opsional"></label>
+        <button class="ghost" onclick="applyAttrFilter()">Terapkan</button>
+        <button class="ghost" onclick="resetAttrFilter()">Reset</button>
+        <span class="foot" id="attrCount" style="margin:0;align-self:center"></span>
+      </div>
+      <div class="tablewrap">
+        <table id="attribTable">
+          <thead><tr>
+            <th data-k="campaign">Tag (Link1)<span class="sarrow" id="aarrow-campaign"></span></th>
+            <th data-k="akun">Akun<span class="sarrow" id="aarrow-akun"></span></th>
+            <th>Match</th>
+            <th data-k="spend">Spend<span class="sarrow" id="aarrow-spend"></span></th>
+            <th data-k="komisi">Komisi<span class="sarrow" id="aarrow-komisi"></span></th>
+            <th data-k="net">Net<span class="sarrow" id="aarrow-net"></span></th>
+            <th data-k="roas">ROAS<span class="sarrow" id="aarrow-roas"></span></th>
+            <th data-k="roi">ROI<span class="sarrow" id="aarrow-roi"></span></th>
+            <th data-k="cpc">CPC Meta<span class="qmark" onmouseenter="showHelp(event,'Spend ÷ Meta Clicks, rata-rata biaya per klik iklan.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="aarrow-cpc"></span></th>
+            <th data-k="epc">EPC<span class="qmark" onmouseenter="showHelp(event,'Komisi ÷ Meta Clicks, rata-rata pendapatan per klik iklan.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="aarrow-epc"></span></th>
+            <th data-k="newUser">New User<span class="qmark" onmouseenter="showHelp(event,'Jumlah pesanan dari pembeli baru — dibaca dari kolom AO (Status Pembelian) di CSV Komisi Affiliate Shopee, nilainya Baru.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="aarrow-newUser"></span></th>
+            <th>Rekomendasi<span class="qmark" onmouseenter="showHelp(event,'SCALE jika ROAS ≥ 1.5x, TAHAN jika ROAS 1x–1.5x, KILL jika ROAS di bawah 1x.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
+            <th data-k="orders">Orders<span class="sarrow" id="aarrow-orders"></span></th>
+            <th data-k="avgOrder">Avg/Order<span class="sarrow" id="aarrow-avgOrder"></span></th>
+            <th data-k="realCpc">Real CPC<span class="qmark" onmouseenter="showHelp(event,'Spend ÷ Klik Shopee (dari Shopee Click Report). Butuh file klik opsional saat upload.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="aarrow-realCpc"></span></th>
+            <th data-k="realRate">Real Rate<span class="qmark" onmouseenter="showHelp(event,'Klik Shopee ÷ Klik Meta, dalam persen (dari file Klik Report Shopee). Rate praktis yang lebih real dibanding Meta LP Views. Butuh file klik opsional saat upload.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="aarrow-realRate"></span></th>
+            <th data-k="clicks">Klik Meta<span class="sarrow" id="aarrow-clicks"></span></th>
+            <th data-k="klikShopee">Klik Shopee<span class="sarrow" id="aarrow-klikShopee"></span></th>
+          </tr></thead>
+          <tbody id="attribBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+let campRows = [];
+let overview = {};
+let currentWs = null;
+let viewMode = 'single';
+let activeOverview = {}, activeCampRows = [];
+let rawMeta = [], rawShopee = [], rawClicks = [], activeRawMeta = [], activeRawShopee = [], activeRawClicks = [];
+let akunOrderMap = {}; // akunLabel (nama workspace) -> 'Akun N', ditentukan dari urutan workspace, bukan urutan tabel
+function normTag(s){ return (s||'').trim().replace(/-+$/,'').trim(); }
+const NEW_USER_BONUS = 50000; // estimasi bonus komisi Shopee per pembeli baru (Rp), di luar komisi produk normal
+function isValidNewUser(r){
+  // hanya dihitung pembeli baru jika Status Pemebelian = "Baru" DAN Nilai Pembelian > 0 (order Rp0 bukan transaksi riil)
+  if((r['_newUserCell']||'').toString().trim().toLowerCase()!=='baru') return false;
+  return (r._purchaseValue||0) > 0;
+}
+let selPlatforms = null, sensorOn = false;
+
+function toDateKey(s){
+  if(!s) return '';
+  s = String(s).trim();
+  let m = s.match(/(\d{4}-\d{2}-\d{2})/); if(m) return m[1];
+  m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/); if(m) return m[3]+'-'+m[2]+'-'+m[1];
+  return s.slice(0,10);
+}
+function buildLite(metaRows, shopeeRows, clickRows){
+  rawMeta = metaRows.map(r=>({date:toDateKey(r['Awal pelaporan']), campaign:(r['Nama kampanye']||'').trim(), akun:r['_akun']||'Akun 1', spend:num(r['Jumlah yang dibelanjakan (IDR)']), clicks:num(r['Klik tautan']), impr:num(r['Impresi']), lp:num(r['Tayangan halaman tujuan'])}));
+  rawShopee = shopeeRows.map(r=>({date:toDateKey(r['Waktu Pemesanan']), klikDate:toDateKey(r['Waktu Klik']), platform:(r['Platform']||'Lainnya').trim()||'Lainnya', komisi:num(r['Komisi Bersih Affiliate (Rp)']), tag:normTag(r['Tag_link1']), oid:r['ID Pemesanan'], produk:(r['Nama Barange']||'Tanpa nama').trim()||'Tanpa nama', kategori:(r['L1 Kategori Global']||'Lainnya').trim()||'Lainnya', status:(r['Status Pesanan']||'—').trim()||'—', newUser:isValidNewUser(r)})).filter(x=>x.oid);
+  rawClicks = (clickRows||[]).map(r=>({tag:normTag(r['Tag_link']), date:toDateKey(r['Waktu Klik']), platform:(r['Perujuk']||'').trim()})).filter(x=>x.tag);
+}
+function getBounds(){
+  const dates=[...rawMeta.map(m=>m.date), ...rawShopee.map(s=>s.date)].filter(Boolean).sort();
+  return {min:dates[0]||'', max:dates[dates.length-1]||''};
+}
+function setRangeAll(){ const b=getBounds(); document.getElementById('dateFrom').value=b.min; document.getElementById('dateTo').value=b.max; refreshOverview(); }
+function setRangeLatest(){ const b=getBounds(); document.getElementById('dateFrom').value=b.max; document.getElementById('dateTo').value=b.max; refreshOverview(); }
+function toggleSensor(){
+  sensorOn=!sensorOn;
+  document.getElementById('dash').classList.toggle('sensored', sensorOn);
+  document.getElementById('sensorBtn').classList.toggle('active', sensorOn);
+}
+function togglePlatform(p){
+  if(!selPlatforms) selPlatforms = new Set();
+  if(selPlatforms.has(p)) selPlatforms.delete(p); else selPlatforms.add(p);
+  if(selPlatforms.size===0) selPlatforms=null;
+  refreshOverview();
+}
+function renderPlatformPills(sfAll){
+  const counts={};
+  sfAll.forEach(s=>{ counts[s.platform]=(counts[s.platform]||0)+1; });
+  const platforms = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+  const allActive = !selPlatforms;
+  let html = `<button class="pill ${allActive?'active':''}" onclick="selPlatforms=null;refreshOverview()">Semua <b>${sfAll.length}</b></button>`;
+  html += platforms.map(p=>{
+    const active = selPlatforms && selPlatforms.has(p);
+    return `<button class="pill ${active?'active':''}" onclick="togglePlatform('${p.replace(/'/g,'')}')">${p} <b>${counts[p]}</b></button>`;
+  }).join('');
+  document.getElementById('platformPills').innerHTML = html;
+}
+const DONUT_PALETTE = ['#ff6b3d','#3ecf8e','#5b8def','#e0c341','#a15bde','#e05b8e','#5bd0de','#de8f5b','#7ede5b','#5b64de'];
+const ORGANIK_PLATFORMS = ['others','lainnya','other'];
+function channelOf(platform){ return ORGANIK_PLATFORMS.includes((platform||'').trim().toLowerCase()) ? 'Organik' : 'Social Media'; }
+function showDonutTip(e,title,label,color,valueText){
+  const t = ensureTip();
+  t.innerHTML = `<div class="tt-h">${title}</div><div class="tt-row"><i style="background:${color}"></i>${label}: ${valueText}</div>`;
+  t.style.display='block';
+  moveTip(e);
+}
+function renderDonut(elId, legendId, data, opts){
+  opts = opts || {};
+  const title = opts.title || '';
+  const valueFmt = opts.valueFmt || (v=>fmtRpFull(v));
+  const el = document.getElementById(elId), legendEl = document.getElementById(legendId);
+  const total = data.reduce((s,d)=>s+d.value,0);
+  if(!total){ el.innerHTML = '<div class="histempty">Tidak ada data.</div>'; legendEl.innerHTML=''; return; }
+  const size=210, r=76, cx=size/2, cy=size/2, sw=32, circ=2*Math.PI*r;
+  const gapPx = data.length>1 ? 3 : 0;
+  let acc=0;
+  const segs = data.map(d=>{
+    const pct = d.value/total*100;
+    const dash = Math.max((pct/100*circ)-gapPx, 0);
+    const offset = -(acc/100*circ);
+    acc += pct;
+    const valText = valueFmt(d.value);
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.color}" stroke-width="${sw}" stroke-linecap="butt" stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" class="donutseg" onmouseenter='showDonutTip(event,${JSON.stringify(title)},${JSON.stringify(d.label)},${JSON.stringify(d.color)},${JSON.stringify(valText)})' onmousemove="moveTip(event)" onmouseleave="hideTip()"><title></title></circle>`;
+  }).join('');
+  const centerLabel = opts.centerLabel || '';
+  el.innerHTML = `<div class="donutholder" style="width:${size}px;height:${size}px"><svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform:rotate(-90deg)">${segs}</svg>${centerLabel?`<div class="donutcenter">${centerLabel}</div>`:''}</div>`;
+  legendEl.innerHTML = `<div class="donutlegendcol">${data.map(d=>`<div class="donutrow"><i style="background:${d.color}"></i><span class="lb">${d.label}</span><b>${(d.value/total*100).toFixed(1)}%</b></div>`).join('')}</div>`;
+}
+let tipEl;
+function ensureTip(){ if(!tipEl){ tipEl=document.createElement('div'); tipEl.className='charttip'; document.body.appendChild(tipEl); } return tipEl; }
+function showTip(e, title, label, color, value){
+  const t = ensureTip();
+  t.innerHTML = `<div class="tt-h">${title}</div><div class="tt-row"><i style="background:${color}"></i>${label}: ${fmtRpFull(value)}</div>`;
+  t.style.display='block';
+  moveTip(e);
+}
+function moveTip(e){ const t=ensureTip(); t.style.left=(e.clientX+14)+'px'; t.style.top=(e.clientY-8)+'px'; }
+function hideTip(){ if(tipEl) tipEl.style.display='none'; }
+let helpEl=null;
+function ensureHelp(){ if(!helpEl){ helpEl=document.createElement('div'); helpEl.className='helptip'; document.body.appendChild(helpEl); } return helpEl; }
+function showHelp(e,text){ const t=ensureHelp(); t.textContent=text; t.style.display='block'; positionHelp(e); }
+function positionHelp(e){
+  const t=ensureHelp();
+  const w=t.offsetWidth||220, h=t.offsetHeight||60;
+  let left=e.clientX+14, top=e.clientY+14;
+  if(left+w>window.innerWidth-10) left=e.clientX-w-14;
+  if(left<10) left=10;
+  if(top+h>window.innerHeight-10) top=e.clientY-h-14;
+  if(top<10) top=10;
+  t.style.left=left+'px'; t.style.top=top+'px';
+}
+function hideHelp(){ if(helpEl) helpEl.style.display='none'; }
+
+let rekEl=null;
+function ensureRek(){ if(!rekEl){ rekEl=document.createElement('div'); rekEl.className='rekpopup'; document.body.appendChild(rekEl); } return rekEl; }
+function positionRekPopup(e){
+  const t=ensureRek(); const w=t.offsetWidth||380, h=Math.min(t.offsetHeight||300, window.innerHeight-20);
+  let left=e.clientX+16, top=e.clientY+16;
+  if(left+w>window.innerWidth-10) left=e.clientX-w-16;
+  if(left<10) left=10;
+  if(top+h>window.innerHeight-10) top=Math.max(10, window.innerHeight-h-10);
+  t.style.left=left+'px'; t.style.top=top+'px';
+}
+function showRekForCamp(e, campaign){
+  const r = (campRows||[]).find(x=>x.campaign===campaign);
+  if(!r) return;
+  const t=ensureRek(); t.innerHTML=buildRekomendasiHtml(r); t.style.display='block'; positionRekPopup(e);
+}
+function moveRekPopup(e){ if(rekEl && rekEl.style.display==='block') positionRekPopup(e); }
+function hideRekPopup(){ if(rekEl) rekEl.style.display='none'; }
+function renderBarChart(elId, bars, legend, caption){
+  const el = document.getElementById(elId);
+  if(!bars.length){ el.innerHTML='<div class="histempty">Tidak ada data.</div>'; return; }
+  const maxV = Math.max(...bars.map(b=>Math.abs(b.value)), 1);
+  const steps = 5;
+  let gridHtml='';
+  for(let i=0;i<=steps;i++){
+    gridHtml += `<div class="gline" style="bottom:${(i/steps*100).toFixed(2)}%"><span>${fmtRp(maxV*i/steps)}</span></div>`;
+  }
+  const barsHtml = bars.map((b,i)=>`
+    <div class="barcol2" onmouseenter="showTip(event,'${b.title}','${b.label}','${b.color}',${b.value})" onmousemove="moveTip(event)" onmouseleave="hideTip()">
+      <div class="b2" style="height:${(Math.abs(b.value)/maxV*100).toFixed(1)}%;background:${b.color}"></div>
+    </div>`).join('');
+  const labelsHtml = bars.map(b=>`<div class="barlabelcol">${b.label}</div>`).join('');
+  const legendHtml = legend ? `<div class="chartlegend">${legend.map(l=>`<span class="lg"><i style="background:${l.color}"></i>${l.label}</span>`).join('')}</div>` : '';
+  const bars2Cls = bars.length<=6 ? 'few' : 'many';
+  el.innerHTML = `<div class="chart-head">${legendHtml}</div><div class="chartarea"><div class="grid-lines">${gridHtml}</div><div class="bars2 ${bars2Cls}">${barsHtml}</div></div><div class="barlabels ${bars2Cls}">${labelsHtml}</div><div class="chart-caption">${caption||''}</div>`;
+  const b2El = el.querySelector('.bars2'), blEl = el.querySelector('.barlabels');
+  if(b2El && blEl) b2El.addEventListener('scroll', ()=>{ blEl.scrollLeft = b2El.scrollLeft; });
+}
+function renderDailyChart(days){
+  const bars = days.map(d=>({title:d.date, label:d.date.slice(5), value:d.net, color:d.net>=0?'var(--good)':'var(--bad2)'}));
+  renderBarChart('netProfitHarian', bars, null);
+}
+function renderDailyTable(days){
+  document.getElementById('dailyBody').innerHTML = days.map(d=>`
+    <tr><td>${d.date}</td><td>${fmtRpFull(d.spend)}</td><td style="font-weight:500">${fmtRpFull(d.komisi)}</td>
+    <td class="${d.net>=0?'pos':'neg'}" style="font-weight:500">${d.net>=0?'+':''}${fmtRpFull(d.net)}</td>
+    <td style="color:${roasColor(d.roas)};font-weight:500">${d.roas.toFixed(2)}x</td><td style="color:${roiColor(d.roi)};font-weight:500">${d.roi.toFixed(1)}%</td><td style="color:${d.epc>(d.clicks>0?d.spend/d.clicks:0)?'var(--good)':'var(--bad2)'};font-weight:500">${fmtRpFull(d.epc)}</td>
+    <td>${fmtInt(d.clicks)}</td><td>${fmtInt(d.lp)}</td><td style="color:${lpColor(d.lpRate)};font-weight:500">${d.lpRate.toFixed(1)}%</td>
+    <td>${fmtInt(d.orders)}</td><td style="color:${zeroColor(d.zeroPct)};font-weight:500">${d.zeroPct.toFixed(1)}%</td></tr>`).join('');
+}
+function refreshOverview(){
+  if(!rawMeta.length && !rawShopee.length) return;
+  const b = getBounds();
+  const from = document.getElementById('dateFrom').value || b.min;
+  const to = document.getElementById('dateTo').value || b.max;
+  const ppnOn = document.getElementById('ppnSel').value==='1';
+  document.getElementById('ppnPctWrap').style.display = ppnOn?'':'none';
+  const ppnPct = num(document.getElementById('ppnPct').value) || 0;
+  const ppnMult = 1 + (ppnOn ? ppnPct/100 : 0);
+  const target = num(document.getElementById('targetInput').value) || 500000;
+  const inRange = d => d && d>=from && d<=to;
+
+  const mf = rawMeta.filter(m=>inRange(m.date));
+  let ts=0,tc=0,ti=0,tl=0;
+  mf.forEach(m=>{ts+=m.spend;tc+=m.clicks;ti+=m.impr;tl+=m.lp;});
+  if(ppnOn) ts*=ppnMult;
+
+  const sfAll = rawShopee.filter(s=>inRange(s.date));
+  const sf = selPlatforms ? sfAll.filter(s=>selPlatforms.has(s.platform)) : sfAll;
+  // order dianggap dibatalkan kalau SALAH SATU baris/item pesanan itu berstatus Dibatalkan
+  const cancelledOids = new Set();
+  sf.forEach(s=>{ if(/dibatal/i.test(s.status||'')) cancelledOids.add(s.oid); });
+  let tk=0,tzero=0,titems=0; const oset=new Set();
+  sf.forEach(s=>{
+    tk+=s.komisi;
+    if(cancelledOids.has(s.oid)) return;
+    titems++;
+    if(s.komisi===0) tzero++;
+    oset.add(s.oid);
+  });
+  const totalItems=titems, uniqueOrders=oset.size;
+
+  const netProfit=tk-ts, roas=ts>0?tk/ts:0, roi=ts>0?(netProfit/ts*100):0;
+  const lpRate=tc>0?(tl/tc*100):0, zeroPct=totalItems>0?(tzero/totalItems*100):0;
+  overview = {totalSpend:ts,totalKomisi:tk,netProfit,roas,roi,totalClicks:tc,totalImpr:ti,totalLp:tl,lpRate,uniqueOrders,totalItems,zeroCount:tzero,zeroPct,target,from,to,ppnOn,ppnPct};
+  renderOverview();
+
+  const dayMap={};
+  mf.forEach(m=>{ const d=dayMap[m.date]=dayMap[m.date]||{spend:0,clicks:0,impr:0,lp:0,komisi:0,orders:new Set(),zero:0,items:0}; d.spend+=ppnOn?m.spend*ppnMult:m.spend; d.clicks+=m.clicks; d.impr+=m.impr; d.lp+=m.lp; });
+  sf.forEach(s=>{
+    const d=dayMap[s.date]=dayMap[s.date]||{spend:0,clicks:0,impr:0,lp:0,komisi:0,orders:new Set(),zero:0,items:0};
+    d.komisi+=s.komisi;
+    if(cancelledOids.has(s.oid)) return;
+    d.orders.add(s.oid);
+    if(s.komisi===0) d.zero++;
+    d.items++;
+  });
+  const days = Object.keys(dayMap).filter(Boolean).sort().map(dt=>{
+    const d=dayMap[dt]; const net=d.komisi-d.spend; const roas2=d.spend>0?d.komisi/d.spend:0; const roi2=d.spend>0?(net/d.spend*100):0;
+    const epc=d.clicks>0?d.komisi/d.clicks:0; const lpr=d.clicks>0?(d.lp/d.clicks*100):0; const zpct=d.items>0?(d.zero/d.items*100):0;
+    return {date:dt, spend:d.spend, komisi:d.komisi, net, roas:roas2, roi:roi2, epc, clicks:d.clicks, lp:d.lp, lpRate:lpr, orders:d.orders.size, zeroPct:zpct};
+  });
+  renderDailyChart(days);
+  renderDailyTable(days);
+  renderPlatformPills(sfAll);
+  document.getElementById('orderscount').textContent = uniqueOrders+' / '+sfAll.length+' orders ('+(sfAll.length>0?(uniqueOrders/sfAll.length*100).toFixed(0):0)+'%)';
+  renderProduk(sf, sfAll);
+}
+
+function getLatestSnapshot(wsId){
+  const idx = lsGet(snapIndexKey(wsId), []);
+  if(!idx.length) return null;
+  return lsGet(idx[0].key, null);
+}
+function setViewMode(mode){
+  viewMode = mode;
+  document.querySelectorAll('.viewbtn').forEach(b=>b.classList.toggle('active', b.dataset.view===mode));
+  applyViewMode();
+}
+function applyViewMode(){
+  const bd = document.getElementById('wsBreakdown');
+  if(viewMode==='all'){
+    const list = getWorkspaces();
+    let ts=0,tk=0,tc=0,ti=0,tl=0,tzero=0,titems=0,allOrders=0;
+    const wsCards=[]; let mergedCamp=[];
+    list.forEach(w=>{
+      const snap = getLatestSnapshot(w.id);
+      if(!snap) return;
+      const o = snap.overview;
+      ts+=o.totalSpend||0; tk+=o.totalKomisi||0; tc+=o.totalClicks||0; ti+=o.totalImpr||0; tl+=o.totalLp||0;
+      tzero+=o.zeroCount||0; titems+=o.totalItems||0; allOrders+=o.uniqueOrders||0;
+      wsCards.push({name:w.name, spend:o.totalSpend||0, roas:o.roas||0, net:o.netProfit||0, orders:o.uniqueOrders||0});
+      (snap.campRows||[]).forEach(c=> mergedCamp.push(Object.assign({}, c, {workspace:w.name})));
+    });
+    const netProfit=tk-ts, roas= ts>0?tk/ts:0, roi= ts>0?(netProfit/ts*100):0;
+    const lpRate = tc>0?(tl/tc*100):0, zeroPct= titems>0?(tzero/titems*100):0;
+    overview = {totalSpend:ts,totalKomisi:tk,netProfit,roas,roi,totalClicks:tc,totalImpr:ti,totalLp:tl,lpRate,uniqueOrders:allOrders,totalItems:titems,zeroCount:tzero,zeroPct};
+    campRows = mergedCamp;
+    bd.style.display='grid';
+    bd.innerHTML = wsCards.length ? wsCards.map(w=>{
+      const share = ts>0? (w.spend/ts*100):0;
+      return `<div class="card"><div class="lbl">${w.name.toUpperCase()}</div><div class="val">${fmtRp(w.spend)}</div><div class="foot">ROAS <span class="${w.roas>=1?'pos':'neg'}">${w.roas.toFixed(2)}x</span> · Net ${fmtRp(w.net)} · ${share.toFixed(0)}% · ${fmtInt(w.orders)} orders</div></div>`;
+    }).join('') : '<div class="histempty">Belum ada data tersimpan di workspace manapun.</div>';
+  } else {
+    overview = activeOverview; campRows = activeCampRows;
+    rawMeta = activeRawMeta; rawShopee = activeRawShopee; rawClicks = activeRawClicks;
+    bd.style.display='none'; bd.innerHTML='';
+    if(rawMeta.length || rawShopee.length){
+      if(!document.getElementById('dateFrom').value) setRangeAll(); else refreshOverview();
+    } else { renderOverview(); }
+    renderCampaigns(); renderFunnel(); renderAttribution();
+    return;
+  }
+  renderOverview(); renderCampaigns(); renderFunnel(); renderAttribution();
+}
+
+function lsGet(k, fallback){ try{ const v = localStorage.getItem(k); return v?JSON.parse(v):fallback; }catch(e){ return fallback; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ console.error('storage err', e); } }
+
+function getWorkspaces(){ return lsGet('aft_workspaces', []); }
+function saveWorkspaces(list){ lsSet('aft_workspaces', list); }
+
+function renderWsSelect(){
+  const list = getWorkspaces();
+  const sel = document.getElementById('wsSelect');
+  sel.innerHTML = list.length ? list.map(w=>`<option value="${w.id}">${w.name}</option>`).join('') : '<option value="">(belum ada workspace)</option>';
+  if(currentWs && list.some(w=>w.id===currentWs)) sel.value = currentWs;
+  else if(list.length){ currentWs = list[0].id; sel.value = currentWs; }
+  document.getElementById('wsBadge').textContent = list.length ? 'Workspace aktif: '+(list.find(w=>w.id===currentWs)||{}).name : '';
+  lsSet('aft_current_ws', currentWs);
+  renderHistory();
+  checkReady();
+}
+function createWorkspace(){
+  const nameEl = document.getElementById('wsNewName');
+  const list = getWorkspaces();
+  const name = nameEl.value.trim() || ('Workspace '+(list.length+1));
+  const id = 'ws_'+Date.now();
+  list.push({id, name});
+  saveWorkspaces(list);
+  currentWs = id;
+  nameEl.value='';
+  renderWsSelect();
+}
+function onWorkspaceChange(){
+  currentWs = document.getElementById('wsSelect').value;
+  renderWsSelect();
+}
+
+function snapIndexKey(wsId){ return 'aft_snap_index_'+wsId; }
+function saveSnapshot(){
+  if(!currentWs) return;
+  const idx = lsGet(snapIndexKey(currentWs), []);
+  const key = 'aft_snap_'+currentWs+'_'+Date.now();
+  lsSet(key, {overview, campRows, rawMeta, rawShopee, rawClicks, savedAt: Date.now()});
+  idx.unshift({key, savedAt: Date.now()});
+  lsSet(snapIndexKey(currentWs), idx.slice(0,10));
+  renderHistory();
+}
+function renderHistory(){
+  const el = document.getElementById('historyList');
+  if(!currentWs){ el.innerHTML = '<div class="histempty">Pilih atau buat workspace dulu.</div>'; return; }
+  const idx = lsGet(snapIndexKey(currentWs), []);
+  if(!idx.length){ el.innerHTML = '<div class="histempty">Belum ada history untuk workspace ini.</div>'; return; }
+  el.innerHTML = idx.map(item=>{
+    const d = new Date(item.savedAt);
+    return `<div class="histitem"><div><div>${d.toLocaleDateString('id-ID')} ${d.toLocaleTimeString('id-ID')}</div></div><button class="ghost" onclick="loadSnapshot('${item.key}')">Buka</button></div>`;
+  }).join('');
+}
+function loadSnapshot(key){
+  const snap = lsGet(key, null);
+  if(!snap) return;
+  activeOverview = snap.overview; activeCampRows = snap.campRows;
+  activeRawMeta = snap.rawMeta||[]; activeRawShopee = snap.rawShopee||[]; activeRawClicks = snap.rawClicks||[];
+  selPlatforms = null;
+  document.getElementById('dateFrom').value=''; document.getElementById('dateTo').value='';
+  viewMode='single';
+  document.querySelectorAll('.viewbtn').forEach(b=>b.classList.toggle('active', b.dataset.view==='single'));
+  applyViewMode();
+  document.getElementById('upload').style.display='none';
+  document.getElementById('dash').style.display='flex';
+}
+
+let uiWorkspaces = [{id:'w1', name:'', collapsed:false, metaFiles:[], clickFiles:[], shopeeAccounts:[{name:'', file:null}]}];
+let wsIdCounter = 1;
+
+function baseName(fname){ return (fname||'').replace(/\.csv$/i,''); }
+function newShopeeAcc(name, file){ return {name:name||'', file:file||null}; }
+function newWorkspace(name, metaFile){ wsIdCounter++; return {id:'w'+wsIdCounter, name:name||'', collapsed:false, metaFiles:metaFile?[metaFile]:[], clickFiles:[], shopeeAccounts:[newShopeeAcc()]}; }
+
+function renderUiWorkspaces(){
+  const el = document.getElementById('wsCards');
+  if(!el) return;
+  el.innerHTML = uiWorkspaces.map((w,idx)=>renderWsCard(w,idx)).join('');
+  checkReady();
+}
+function renderWsCard(w, idx){
+  const filled = w.shopeeAccounts.filter(a=>a.file).length;
+  const status = `Meta ${w.metaFiles.length?'✓ ('+w.metaFiles.length+')':'—'} · Shopee ${filled}/${w.shopeeAccounts.length}`;
+  return `<div class="wscard" data-wid="${w.id}">
+    <div class="wscard-head">
+      <div class="wsnum">${idx+1}</div>
+      <input type="text" class="wsname" placeholder="Nama workspace (contoh: Aisyah Store)" value="${(w.name||'').replace(/"/g,'&quot;')}" oninput="updateWsName('${w.id}', this.value)">
+      <div class="wsstatus">${status}</div>
+      ${uiWorkspaces.length>1?`<button class="rmwsbtn" title="Hapus workspace" onclick="removeWorkspace('${w.id}')">✕</button>`:''}
+      <button class="chevbtn" onclick="toggleWsCollapse('${w.id}')">${w.collapsed?'▸':'▾'}</button>
+    </div>
+    <div class="wscard-body" style="${w.collapsed?'display:none':''}">
+      <div class="sectionlabel">META ADS CSV — BREAKDOWN BY CAMPAIGN + DAY</div>
+      <div class="uploadrow">
+        <div class="uploadicon">▤</div>
+        <div class="uploadinfo">
+          <div class="uploadtitle">Meta Ads Manager Export</div>
+          <div class="uploadsub">Amount spent · Link clicks · LP Views · Impressions</div>
+        </div>
+        <label class="filebtn">Upload CSV<input type="file" accept=".csv" multiple style="display:none" onchange="setMetaFiles('${w.id}', this.files)"></label>
+      </div>
+      <div class="hint" style="margin:4px 0 0">Bisa pilih beberapa file CSV sekaligus (misal beberapa bulan export) — semua digabung ke workspace ini.</div>
+      ${w.metaFiles.length?`<div class="filestatus">✓ ${w.metaFiles.length} file: ${w.metaFiles.map(f=>f.name).join(', ')} <button class="rmbtn" title="Kosongkan" onclick="clearMetaFiles('${w.id}')">✕</button></div>`:''}
+
+      <div class="sectionlabel" style="margin-top:16px">SHOPEE AFFILIATE CSV — BISA LEBIH DARI 1 AKUN</div>
+      ${w.shopeeAccounts.map((a,ai)=>`
+        <div class="acctrow">
+          <div class="wsnum small">${ai+1}</div>
+          <input type="text" class="wsname" placeholder="Nama akun (contoh: Akun Gamis)" value="${(a.name||'').replace(/"/g,'&quot;')}" oninput="updateShopeeAccName('${w.id}',${ai},this.value)">
+          <label class="filebtn small">Pilih CSV<input type="file" accept=".csv" multiple style="display:none" onchange="setShopeeAccFile('${w.id}',${ai},this.files)"></label>
+          <span class="acctstatus">${a.file?('✓ '+a.file.name):'Belum ada'}</span>
+          ${w.shopeeAccounts.length>1?`<button class="rmbtn" title="Hapus akun" onclick="removeShopeeAcc('${w.id}',${ai})">✕</button>`:''}
+        </div>`).join('')}
+      <button class="dashedbtn small" onclick="addShopeeAcc('${w.id}')">+ Tambah Akun Shopee</button>
+      <div class="hint" style="margin:4px 0 0">Bisa pilih beberapa file CSV sekaligus di satu klik — tiap file otomatis jadi baris akun baru.</div>
+
+      <div class="sectionlabel" style="margin-top:16px">SHOPEE CLICK REPORT <span style="font-weight:400;color:var(--muted)">(opsional)</span></div>
+      <div class="uploadrow">
+        <div class="uploadicon">▤</div>
+        <div class="uploadinfo">
+          <div class="uploadtitle">Shopee Click Report</div>
+          <div class="uploadsub">Untuk hitung Real CPC & Real Rate di tab Atribusi. Bisa lebih dari 1 file.</div>
+        </div>
+        <label class="filebtn">Upload CSV<input type="file" accept=".csv" multiple style="display:none" onchange="setClickFiles('${w.id}', this.files)"></label>
+      </div>
+      ${w.clickFiles.length?`<div class="filestatus">✓ ${w.clickFiles.length} file: ${w.clickFiles.map(f=>f.name).join(', ')}</div>`:''}
+    </div>
+  </div>`;
+}
+function findWs(id){ return uiWorkspaces.find(w=>w.id===id); }
+function updateWsName(id, val){ const w=findWs(id); if(w) w.name=val; }
+function updateShopeeAccName(id, ai, val){ const w=findWs(id); if(w && w.shopeeAccounts[ai]) w.shopeeAccounts[ai].name=val; }
+function setMetaFiles(id, fileList){
+  const w=findWs(id); if(!w) return;
+  const files = Array.from(fileList||[]);
+  if(!files.length) return;
+  w.metaFiles = w.metaFiles.concat(files);
+  if(!w.name.trim()) w.name = baseName(files[0].name);
+  renderUiWorkspaces();
+}
+function clearMetaFiles(id){ const w=findWs(id); if(w){ w.metaFiles=[]; renderUiWorkspaces(); } }
+function setShopeeAccFile(id, ai, fileList){
+  const w=findWs(id); if(!w || !w.shopeeAccounts[ai]) return;
+  const files = Array.from(fileList||[]);
+  if(!files.length) return;
+  w.shopeeAccounts[ai].file = files[0];
+  if(!w.shopeeAccounts[ai].name.trim()) w.shopeeAccounts[ai].name = baseName(files[0].name);
+  for(let i=1;i<files.length;i++){
+    w.shopeeAccounts.push(newShopeeAcc(baseName(files[i].name), files[i]));
+  }
+  renderUiWorkspaces();
+}
+function setClickFiles(id, fileList){
+  const w=findWs(id); if(!w) return;
+  const files = Array.from(fileList||[]);
+  if(!files.length) return;
+  w.clickFiles = w.clickFiles.concat(files);
+  renderUiWorkspaces();
+}
+function addShopeeAcc(id){ const w=findWs(id); if(w){ w.shopeeAccounts.push(newShopeeAcc()); renderUiWorkspaces(); } }
+function removeShopeeAcc(id, ai){ const w=findWs(id); if(w && w.shopeeAccounts.length>1){ w.shopeeAccounts.splice(ai,1); renderUiWorkspaces(); } }
+function addWorkspace(){ uiWorkspaces.push(newWorkspace()); renderUiWorkspaces(); }
+function removeWorkspace(id){ if(uiWorkspaces.length>1){ uiWorkspaces = uiWorkspaces.filter(w=>w.id!==id); renderUiWorkspaces(); } }
+function toggleWsCollapse(id){ const w=findWs(id); if(w){ w.collapsed=!w.collapsed; renderUiWorkspaces(); } }
+
+function checkReady(){
+  const ok = uiWorkspaces.some(w => w.metaFiles.length && w.shopeeAccounts.some(a=>a.file));
+  const btn = document.getElementById('processBtn');
+  if(btn) btn.disabled = !ok;
+}
+
+function readFile(file){
+  return new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = ()=>resolve(r.result);
+    r.onerror = reject;
+    r.readAsText(file, 'utf-8');
+  });
+}
+function cleanHeader(h){ return h.replace(/^\uFEFF/, '').trim(); }
+function colLetterToIndex(letters){ let idx=0; for(let i=0;i<letters.length;i++){ idx = idx*26 + (letters.charCodeAt(i)-64); } return idx-1; }
+function num(v){ if(v===undefined||v===null||v==='') return 0; const n=parseFloat(String(v).replace(/,/g,'')); return isNaN(n)?0:n; }
+function fmtRp(n){
+  const abs = Math.abs(n);
+  let s;
+  if(abs>=1e9) s = (n/1e6).toFixed(0)+'jt';
+  else if(abs>=1e6) s = (n/1e6).toFixed(1).replace(/\.0$/,'')+'jt';
+  else if(abs>=1e3) s = (n/1e3).toFixed(0)+'rb';
+  else s = Math.round(n).toLocaleString('id-ID');
+  return 'Rp '+s;
+}
+function fmtInt(n){ return Math.round(n).toLocaleString('id-ID'); }
+function fmtRpFull(n){ return 'Rp '+Math.round(n).toLocaleString('id-ID'); }
+function fmtRpPrecise(n){ const neg=n<0; const v=Math.abs(n); const parts=v.toFixed(2).split('.'); const intFmt=parseInt(parts[0],10).toLocaleString('id-ID'); return (neg?'-Rp ':'Rp ')+intFmt+'.'+parts[1]; }
+function roasColor(v){ return v>=2?'var(--good)': v>=1?'var(--warn)':'var(--bad2)'; }
+function roasLabel(v){ return v>=2?'Bagus — layak scale': v>=1?'Cukup — pantau': 'Kurang — rugi'; }
+function roiColor(v){ return v<0?'var(--bad2)': v<100?'var(--warn)':'var(--good)'; }
+function rateColor(v){ return v>=50?'var(--good)': v>=20?'var(--warn)':'var(--bad2)'; }
+function sourceTip(r){
+  if(!r.orders) return 'Belum ada data pesanan untuk hitung sumber pesanan.';
+  return `Sumber Pesanan (dari ${fmtInt(r.orders)} pesanan): ${(r.sameDayPct||0).toFixed(1)}% klik hari yang sama, ${(r.cookiePct||0).toFixed(1)}% cookies hari sebelumnya.`;
+}
+function lpColor(v){ return v>=40?'var(--good)': v>=20?'var(--warn)':'var(--bad2)'; }
+function zeroColor(v){ return v<20?'var(--good)': v<30?'var(--warn)':'var(--bad2)'; }
+
+async function processFiles(){
+  const errEl = document.getElementById('uploadErr'); errEl.textContent='';
+  try{
+    if(!currentWs){
+      const list = getWorkspaces();
+      const id = 'ws_'+Date.now();
+      list.push({id, name:'Workspace '+(list.length+1)});
+      saveWorkspaces(list);
+      currentWs = id;
+      renderWsSelect();
+    }
+    let metaRows = [], shopeeRows = [], clickRows = [];
+    akunOrderMap = {};
+    for(let wi=0; wi<uiWorkspaces.length; wi++){
+      const w = uiWorkspaces[wi];
+      const akunLabel = (w.name && w.name.trim()) ? w.name.trim() : ('Workspace '+(wi+1));
+      akunOrderMap[akunLabel] = 'Akun '+(wi+1);
+      for(const mf of w.metaFiles){
+        const text = await readFile(mf);
+        const parsed = Papa.parse(text, {header:true, skipEmptyLines:true, transformHeader:cleanHeader});
+        parsed.data.forEach(r=>{ r._akun = akunLabel; });
+        metaRows = metaRows.concat(parsed.data);
+      }
+
+      for(const acc of w.shopeeAccounts){
+        if(!acc.file) continue;
+        const stext = await readFile(acc.file);
+        const sparsed = Papa.parse(stext, {header:true, skipEmptyLines:true, transformHeader:cleanHeader});
+        // cari kolom "Status Pemebelian" murni berdasarkan nama header (bukan posisi kolom),
+        // toleran terhadap typo "Pembelian"/"Pemebelian" di CSV Shopee
+        const fields = sparsed.meta.fields||[];
+        const statusField = fields.find(f=>{ const t=(f||'').toLowerCase(); return t.includes('status') && (t.includes('pembelian')||t.includes('pemebelian')); });
+        sparsed.data.forEach(r=>{ r._shopeeAkun = akunLabel; r._newUserCell = statusField ? r[statusField] : ''; r._purchaseValue = num(r['Nilai Pembelian(Rp)']); });
+        shopeeRows = shopeeRows.concat(sparsed.data);
+      }
+      for(const cf of (w.clickFiles||[])){
+        const ctext = await readFile(cf);
+        const cparsed = Papa.parse(ctext, {header:true, skipEmptyLines:true, transformHeader:cleanHeader});
+        clickRows = clickRows.concat(cparsed.data);
+      }
+    }
+
+    if(!metaRows.length || !shopeeRows.length){
+      errEl.textContent = 'Lengkapi minimal 1 workspace dengan Meta CSV + 1 Shopee CSV, lalu coba lagi.';
+      return;
+    }
+    computeAndRender(metaRows, shopeeRows, clickRows);
+    activeOverview = overview; activeCampRows = campRows;
+    activeRawMeta = rawMeta; activeRawShopee = rawShopee; activeRawClicks = rawClicks;
+    saveSnapshot();
+    viewMode='single'; selPlatforms=null;
+    document.getElementById('dateFrom').value=''; document.getElementById('dateTo').value='';
+    document.querySelectorAll('.viewbtn').forEach(b=>b.classList.toggle('active', b.dataset.view==='single'));
+    applyViewMode();
+    document.getElementById('upload').style.display='none';
+    document.getElementById('dash').style.display='flex';
+  }catch(e){
+    console.error(e);
+    errEl.textContent = 'Gagal memproses file: '+e.message;
+  }
+}
+
+function resetAll(){
+  document.getElementById('dash').style.display='none';
+  document.getElementById('upload').style.display='block';
+  // balik ke layar upload tanpa menghapus workspace/file yang sudah dipilih sebelumnya
+  renderUiWorkspaces();
+  renderHistory();
+}
+(function clearOnLoad(){
+  try{
+    const keys = Object.keys(localStorage).filter(k=>k.startsWith('aft_'));
+    keys.forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+})();
+currentWs = lsGet('aft_current_ws', null);
+renderWsSelect();
+renderUiWorkspaces();
+
+function computeAndRender(metaRows, shopeeRows, clickRows){
+  buildLite(metaRows, shopeeRows, clickRows);
+  // aggregate meta by campaign
+  const metaByCamp = {};
+  let totalSpend=0, totalClicks=0, totalImpr=0, totalLp=0;
+  metaRows.forEach(r=>{
+    const name = (r['Nama kampanye']||'').trim();
+    if(!name) return;
+    const spend = num(r['Jumlah yang dibelanjakan (IDR)']);
+    const clicks = num(r['Klik tautan']);
+    const impr = num(r['Impresi']);
+    const lp = num(r['Tayangan halaman tujuan']);
+    if(!metaByCamp[name]) metaByCamp[name] = {campaign:name, akun:r['_akun']||'Akun 1', spend:0, clicks:0, impr:0, lp:0};
+    metaByCamp[name].spend += spend;
+    metaByCamp[name].clicks += clicks;
+    metaByCamp[name].impr += impr;
+    metaByCamp[name].lp += lp;
+    totalSpend += spend; totalClicks += clicks; totalImpr += impr; totalLp += lp;
+  });
+
+  // aggregate shopee by tag_link1
+  const komisiByTag = {};
+  let totalKomisi=0, zeroCount=0, totalItems=0;
+  const orderSet = new Set();
+  // order dianggap dibatalkan kalau SALAH SATU baris/item pesanan itu berstatus Dibatalkan
+  // (1 order bisa punya beberapa baris/item, jadi cek per-order, bukan cuma per-baris)
+  const cancelledOrderIds = new Set();
+  shopeeRows.forEach(r=>{
+    const oid = r['ID Pemesanan'];
+    if(oid && /dibatal/i.test(r['Status Pesanan']||'')) cancelledOrderIds.add(oid);
+  });
+  shopeeRows.forEach(r=>{
+    const oid = r['ID Pemesanan'];
+    if(!oid) return;
+    const komisi = num(r['Komisi Bersih Affiliate (Rp)']);
+    totalKomisi += komisi;
+    const cancelled = cancelledOrderIds.has(oid);
+    const tag = normTag(r['Tag_link1']);
+    if(!cancelled){
+      totalItems++;
+      if(komisi===0) zeroCount++;
+      orderSet.add(oid);
+    }
+    if(!tag) return;
+    if(!komisiByTag[tag]) komisiByTag[tag] = {komisi:0, orders:new Set(), sameDayOrders:new Set(), akuns:new Set(), newUserOrders:new Set(), newUserKomisi:0};
+    komisiByTag[tag].komisi += komisi;
+    if(r['_shopeeAkun']) komisiByTag[tag].akuns.add(r['_shopeeAkun']);
+    if(cancelled) return;
+    komisiByTag[tag].orders.add(oid);
+    if(isValidNewUser(r)){ komisiByTag[tag].newUserOrders.add(oid); komisiByTag[tag].newUserKomisi += komisi; }
+    const orderDate = toDateKey(r['Waktu Pemesanan']);
+    const klikDate = toDateKey(r['Waktu Klik']);
+    if(klikDate && orderDate && klikDate===orderDate) komisiByTag[tag].sameDayOrders.add(oid);
+  });
+  const uniqueOrders = orderSet.size;
+
+  // clicks per tag (from optional Shopee click report)
+  const clicksByTag = {};
+  (clickRows||[]).forEach(r=>{
+    const tag = normTag(r['Tag_link']);
+    if(!tag) return;
+    clicksByTag[tag] = (clicksByTag[tag]||0) + 1;
+  });
+
+  // cari tag Shopee yg cocok dengan nama campaign Meta: exact match diutamakan,
+  // kalau tidak ada, campaign yg mengandung tag sebagai substring juga dianggap match
+  // (nama campaign sering ada tanggal/prefix tambahan, mis. "04/09/26-Traffic-SofaBulat" vs tag "SofaBulat")
+  function findBestTagMatch(campaignKey, tagMap){
+    for(const tag in tagMap){ if(tag.toLowerCase()===campaignKey) return tag; }
+    let best = null;
+    for(const tag in tagMap){
+      const t = tag.toLowerCase();
+      if(t.length>=3 && campaignKey.includes(t)){ if(!best || t.length>best.length) best = tag; }
+    }
+    return best;
+  }
+  // merge into campaign rows
+  const matchedTagKeys = new Set();
+  campRows = Object.values(metaByCamp).map(c=>{
+    const key = normTag(c.campaign).toLowerCase();
+    const matchTag = findBestTagMatch(key, komisiByTag);
+    const match = matchTag ? komisiByTag[matchTag] : null;
+    if(matchTag) matchedTagKeys.add(matchTag.toLowerCase());
+    const komisi = match ? match.komisi : 0;
+    const orders = match ? match.orders.size : 0;
+    const net = komisi - c.spend;
+    const roas = c.spend>0 ? komisi/c.spend : 0;
+    const roi = c.spend>0 ? (net/c.spend*100) : 0;
+    const ctr = c.impr>0 ? (c.clicks/c.impr*100) : 0;
+    const cpc = c.clicks>0 ? (c.spend/c.clicks) : 0;
+    const cpm = c.impr>0 ? (c.spend/c.impr*1000) : 0;
+    const epc = c.clicks>0 ? (komisi/c.clicks) : 0;
+    let klikShopee = 0;
+    const clickLookupKey = matchTag ? matchTag.toLowerCase() : key;
+    for(const tag in clicksByTag){ if(tag.toLowerCase()===clickLookupKey){ klikShopee = clicksByTag[tag]; break; } }
+    const realCpc = klikShopee>0 ? (c.spend/klikShopee) : 0;
+    const realRate = c.clicks>0 ? (klikShopee/c.clicks*100) : 0;
+    const sameDayCount = match ? match.sameDayOrders.size : 0;
+    const sameDayPct = orders>0 ? (sameDayCount/orders*100) : 0;
+    const cookiePct = orders>0 ? (100-sameDayPct) : 0;
+    const newUser = match ? match.newUserOrders.size : 0;
+    const newUserPct = orders>0 ? (newUser/orders*100) : 0;
+    const newUserBonusEst = newUser*NEW_USER_BONUS;
+    const newUserKomisiPct = komisi>0 ? (newUserBonusEst/komisi*100) : 0;
+    let status = roas>=1.5 ? 'SCALE' : (roas<1 ? 'KILL' : 'TAHAN');
+    if(status==='SCALE' && newUserKomisiPct>=80) status='TAHAN';
+    return {campaign:c.campaign, tagLink:matchTag||null, akun:c.akun, match:matchTag?c.campaign:'—', spend:c.spend, clicks:c.clicks, impr:c.impr, ctr, cpc, cpm, epc, komisi, net, roas, roi, orders, klikShopee, realCpc, realRate, sameDayPct, cookiePct, newUser, newUserPct, newUserKomisiPct, noMeta:false,
+      status};
+  });
+  // tag_link yang ada komisinya tapi campaign Meta-nya sudah off / tidak ada di CSV Meta periode ini — tetap dimasukkan
+  Object.keys(komisiByTag).forEach(tag=>{
+    if(matchedTagKeys.has(tag.toLowerCase())) return;
+    const match = komisiByTag[tag];
+    const komisi = match.komisi;
+    const orders = match.orders.size;
+    let klikShopee = 0;
+    for(const t in clicksByTag){ if(t.toLowerCase()===tag.toLowerCase()){ klikShopee = clicksByTag[t]; break; } }
+    const sameDayCount = match.sameDayOrders.size;
+    const sameDayPct = orders>0 ? (sameDayCount/orders*100) : 0;
+    const cookiePct = orders>0 ? (100-sameDayPct) : 0;
+    const akunTxt = match.akuns && match.akuns.size ? Array.from(match.akuns).join(', ') : '—';
+    const newUser = match.newUserOrders.size;
+    const newUserPct = orders>0 ? (newUser/orders*100) : 0;
+    const newUserBonusEst = newUser*NEW_USER_BONUS;
+    const newUserKomisiPct = komisi>0 ? (newUserBonusEst/komisi*100) : 0;
+    let status = komisi>0 ? 'SCALE' : 'KILL';
+    if(status==='SCALE' && newUserKomisiPct>=80) status='TAHAN';
+    campRows.push({campaign:tag, tagLink:tag, akun:akunTxt, match:'—', spend:0, clicks:0, impr:0, ctr:0, cpc:0, cpm:0, epc:0, komisi, net:komisi, roas:null, roi:null, orders, klikShopee, realCpc:0, realRate:0, sameDayPct, cookiePct, newUser, newUserPct, newUserKomisiPct, noMeta:true,
+      status});
+  });
+  campRows.sort((a,b)=>b.spend-a.spend);
+
+  const netProfit = totalKomisi - totalSpend;
+  const roas = totalSpend>0 ? totalKomisi/totalSpend : 0;
+  const roi = totalSpend>0 ? (netProfit/totalSpend*100) : 0;
+  const lpRate = totalClicks>0 ? (totalLp/totalClicks*100) : 0;
+  const zeroPct = totalItems>0 ? (zeroCount/totalItems*100) : 0;
+
+  overview = {totalSpend, totalKomisi, netProfit, roas, roi, totalClicks, totalImpr, totalLp, lpRate, uniqueOrders, totalItems, zeroCount, zeroPct};
+
+  renderOverview();
+  renderCampaigns();
+  renderFunnel();
+  renderAttribution();
+}
+
+function renderFunnel(){
+  const o = overview;
+  const steps = [
+    {label:'Impresi', val:fmtInt(o.totalImpr), foot:'Tayangan iklan Meta', pct:100, color:'#6b6f76'},
+    {label:'Link Clicks', val:fmtInt(o.totalClicks), foot:'Klik iklan (Meta)', pct:o.totalImpr>0?(o.totalClicks/o.totalImpr*100):0, color:'#ff5b5b'},
+    {label:'Landing Page Views', val:fmtInt(o.totalLp), foot:'Pixel load berhasil (Meta)', pct:o.totalClicks>0?(o.totalLp/o.totalClicks*100):0, color:'#f2a93b'},
+    {label:'Unique Orders', val:fmtInt(o.uniqueOrders), foot:'Pesanan di Shopee (by order date)', pct:o.totalClicks>0?(o.uniqueOrders/o.totalClicks*100):0, color:'#3ecf8e'},
+  ];
+  const barsHtml = steps.map((s,i)=>`
+    <div class="funnelrow">
+      <div class="top"><span>${s.label}</span><span>${s.val}${i>0?`<span class="pct">${s.pct.toFixed(1)}%</span>`:''}</span></div>
+      <div class="funnelbar"><div style="width:${Math.max(2,s.pct).toFixed(1)}%;background:${s.color}"></div></div>
+      <div class="foot" style="margin-top:5px">${s.foot}</div>
+    </div>`).join('');
+  const komisiRow = `
+    <div class="funnelrow" style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line)">
+      <div class="top" style="font-size:15px"><span>Total Komisi</span><span>${fmtRpFull(o.totalKomisi)}</span></div>
+      <div class="foot">Komisi bersih affiliate (Rp)</div>
+    </div>`;
+  document.getElementById('funnelBars').innerHTML = `<div class="funnelbox">${barsHtml}${komisiRow}</div>`;
+
+  const cpo = o.uniqueOrders>0 ? o.totalSpend/o.uniqueOrders : 0;
+  const komisiPerOrder = o.uniqueOrders>0 ? o.totalKomisi/o.uniqueOrders : 0;
+  const epc = o.totalClicks>0 ? o.totalKomisi/o.totalClicks : 0;
+  const cpcEff = o.totalClicks>0 ? o.totalSpend/o.totalClicks : 0;
+  const metrics = [
+    {lbl:'Click-to-LP', val:o.lpRate.toFixed(1)+'%', foot:'LP views / Clicks', help:'Persentase klik iklan yang berhasil membuka landing page.'},
+    {lbl:'Click-to-Order', val:(o.totalClicks>0?(o.uniqueOrders/o.totalClicks*100):0).toFixed(1)+'%', foot:'Orders / Clicks', help:'Persentase klik iklan yang berujung jadi pesanan di Shopee.'},
+    {lbl:'Cost per Order', val:fmtRpFull(cpo), foot:'Spend+PPN / Orders', help:'Rata-rata biaya iklan yang dikeluarkan untuk menghasilkan 1 pesanan.'},
+    {lbl:'Komisi per Order', val:fmtRpFull(komisiPerOrder), foot:'Komisi / Orders', help:'Rata-rata komisi yang didapat dari 1 pesanan.'},
+    {lbl:'EPC (Komisi/Klik)', val:fmtRpFull(epc), foot:'Komisi / Meta clicks', color:epc>cpcEff?'var(--good)':'var(--bad2)', help:'Earning per Click: rata-rata komisi per klik iklan. Hijau jika lebih besar dari CPC Efektif.'},
+    {lbl:'ROI', val:o.roi.toFixed(1)+'%', foot:'(Komisi−Spend) / Spend', color:roiColor(o.roi), help:'Return on Investment: persentase untung/rugi dari modal spend. ROI 0% = balik modal.'},
+    {lbl:'CPC Efektif', val:fmtRpFull(cpcEff), foot:'Spend+PPN / Clicks', help:'Rata-rata biaya per klik iklan Meta, termasuk PPN jika aktif.'},
+  ];
+  document.getElementById('funnelMetrics').innerHTML = metrics.map(m=>
+    `<div class="card"><div class="lbl">${m.lbl}${m.help?`<span class="qmark" onmouseenter='showHelp(event,${JSON.stringify(m.help)})' onmousemove='positionHelp(event)' onmouseleave='hideHelp()'>?</span>`:''}</div><div class="val" ${m.color?`style="color:${m.color}"`:''}>${m.val}</div><div class="foot">${m.foot}</div></div>`
+  ).join('');
+}
+
+function renderOverview(){
+  const o = overview;
+  const target = o.target || 500000;
+  const pct = Math.min(100, Math.max(0,(o.netProfit/target*100)));
+  document.getElementById('progDate').textContent = (o.from===o.to ? o.to : (o.from+' – '+o.to)) || '—';
+  document.getElementById('progLabel').innerHTML = fmtRpFull(o.netProfit)+' / target '+fmtRpFull(target);
+  document.getElementById('progPct').textContent = pct.toFixed(0)+'%';
+  document.getElementById('progPct').style.color = pct>=100?'var(--good)': pct>=50?'var(--warn)':'var(--bad2)';
+  document.getElementById('progBar').style.width = pct.toFixed(0)+'%';
+  document.getElementById('progBar').className = pct>=100?'':(pct>=50?'warn':'bad');
+  document.getElementById('pSpend').textContent = fmtRpFull(o.totalSpend);
+  document.getElementById('pKomisi').textContent = fmtRpFull(o.totalKomisi);
+  document.getElementById('pRoas').textContent = o.roas.toFixed(2)+'x';
+  document.getElementById('pRoi').textContent = o.roi.toFixed(1)+'%';
+  document.getElementById('pOrders').textContent = fmtInt(o.uniqueOrders);
+
+  const kpis = [
+    {lbl:o.ppnOn?'Spend + PPN':'Spend', val:fmtRp(o.totalSpend), foot:o.ppnOn?('Biaya iklan Meta + PPN '+o.ppnPct+'%'):'Biaya iklan Meta', help:'Total biaya iklan Meta yang dikeluarkan pada periode ini'+(o.ppnOn?' (sudah termasuk PPN '+o.ppnPct+'%).':'.')},
+    {lbl:'Total Komisi', val:fmtRp(o.totalKomisi), cls:'pos', foot:'Komisi affiliate Shopee', help:'Total komisi affiliate yang didapat dari Shopee pada periode ini, sebelum dikurangi biaya iklan.'},
+    {lbl:'Net Profit', val:(o.netProfit>=0?'+ ':'- ')+fmtRp(Math.abs(o.netProfit)), cls:o.netProfit>=0?'pos':'neg', foot:'Komisi − Spend', help:'Sisa setelah komisi dikurangi spend iklan. Positif berarti untung, negatif berarti rugi.'},
+    {lbl:'ROAS', val:o.roas.toFixed(2)+'x', color:roasColor(o.roas), help:'Return on Ad Spend: komisi dibagi spend. ROAS 1x = balik modal, di atas 2x tergolong bagus dan layak scale.'},
+    {lbl:'ROI', val:o.roi.toFixed(1)+'%', color:roiColor(o.roi), foot:'(Komisi−Spend)/Spend', help:'Return on Investment: persentase untung/rugi dari modal spend. ROI 0% = balik modal, negatif berarti rugi.'},
+    {lbl:'Meta Clicks', val:fmtInt(o.totalClicks), foot:'CPC: '+fmtRpFull(o.totalClicks>0?o.totalSpend/o.totalClicks:0), help:'Jumlah klik pada iklan Meta. CPC (Cost per Click) adalah rata-rata biaya per klik = Spend ÷ Klik.'},
+    {lbl:'LP Views', val:fmtInt(o.totalLp), foot:'LP rate: '+o.lpRate.toFixed(1)+'%', footColor:lpColor(o.lpRate), help:'Jumlah kunjungan ke landing page dari klik iklan. LP rate = LP Views ÷ Klik, makin tinggi makin bagus.'},
+    {lbl:'Unique Orders', val:fmtInt(o.uniqueOrders), foot:'Komisi/order: '+fmtRpFull(o.uniqueOrders>0?o.totalKomisi/o.uniqueOrders:0), help:'Jumlah pesanan unik (berdasarkan ID Pemesanan) yang tercatat dari link affiliate pada periode ini.'},
+    {lbl:'Zero Komisi', val:o.zeroPct.toFixed(1)+'%', color:zeroColor(o.zeroPct), foot:o.zeroCount+' dari '+o.totalItems+' item', help:'Persentase item dengan komisi Rp0 (biasanya dibatalkan/ditolak Shopee). Makin tinggi makin buruk.'},
+  ];
+  document.getElementById('kpiGrid').innerHTML = kpis.map(k=>
+    `<div class="card"><div class="lbl">${k.lbl}${k.help?`<span class="qmark" onmouseenter='showHelp(event,${JSON.stringify(k.help)})' onmousemove='positionHelp(event)' onmouseleave='hideHelp()'>?</span>`:''}</div><div class="val ${k.cls||''}" ${k.color?`style="color:${k.color}"`:''}>${k.val}</div>${k.foot?`<div class="foot" ${k.footColor?`style="color:${k.footColor}"`:''}>${k.foot}</div>`:''}</div>`
+  ).join('');
+
+  const periodTxt2 = o.from && o.to ? (o.from===o.to ? o.from : (o.from+' s/d '+o.to)) : '';
+  renderBarChart('spendVsKomisi', [
+    {title:'Total periode', label:'Spend', value:o.totalSpend, color:'#5b5f66'},
+    {title:'Total periode', label:'Komisi', value:o.totalKomisi, color:'var(--accent)'}
+  ], [{color:'#5b5f66', label:'Spend'},{color:'var(--accent)', label:'Komisi'}], periodTxt2);
+}
+
+function renderProduk(sf, sfAll){
+  // channel breakdown (respects date+platform filter)
+  const byChannel = {};
+  sf.forEach(s=>{ const ch=channelOf(s.platform); if(!byChannel[ch]) byChannel[ch]={komisi:0, orders:new Set()}; byChannel[ch].komisi+=s.komisi; byChannel[ch].orders.add(s.oid); });
+  const totalKomisiCh = Object.values(byChannel).reduce((a,c)=>a+c.komisi,0) || 1;
+  const chColors = {'Social Media':'#5b8def','Organik':'#3ecf8e'};
+  const chOrder = ['Social Media','Organik'].filter(c=>byChannel[c]);
+  document.getElementById('channelCards').innerHTML = chOrder.map(ch=>{
+    const c = byChannel[ch];
+    return `<div class="card"><div class="lbl"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${chColors[ch]};margin-right:6px"></span>${ch}</div><div class="val">${fmtRp(c.komisi)}</div><div class="foot">${(c.komisi/totalKomisiCh*100).toFixed(0)}% dari total · ${c.orders.size} orders</div></div>`;
+  }).join('') || '<div class="histempty">Tidak ada data.</div>';
+
+  // komisi per kategori (respects filter)
+  const byKat = {};
+  sf.forEach(s=>{ const k=s.kategori||'Lainnya'; byKat[k]=(byKat[k]||0)+s.komisi; });
+  const katSorted = Object.keys(byKat).sort((a,b)=>byKat[b]-byKat[a]);
+  const katTop = katSorted.slice(0,8);
+  const katRest = katSorted.slice(8);
+  const katData = katTop.map((k,i)=>({label:k, value:Math.max(byKat[k],0), color:DONUT_PALETTE[i%DONUT_PALETTE.length]}));
+  if(katRest.length){
+    const restSum = katRest.reduce((s,k)=>s+byKat[k],0);
+    katData.push({label:'Lainnya ('+katRest.length+' kategori)', value:Math.max(restSum,0), color:'#5b5f66'});
+  }
+  const katTotal = katData.reduce((s,d)=>s+d.value,0);
+  renderDonut('donutKategori','legendKategori', katData, {title:'Komisi per Kategori', valueFmt:v=>fmtRpFull(v), centerLabel:`<div><div style="font-size:15px;font-weight:700;color:var(--text)">${fmtRp(katTotal)}</div><div>Total Komisi</div></div>`});
+
+  // platform klik (mirrors the top pill counts, unfiltered by platform)
+  const byPlat = {};
+  sfAll.forEach(s=>{ byPlat[s.platform]=(byPlat[s.platform]||0)+s.komisi; });
+  const platSorted = Object.keys(byPlat).sort((a,b)=>byPlat[b]-byPlat[a]);
+  const platTotal = Object.values(byPlat).reduce((a,v)=>a+Math.max(v,0),0);
+  renderDonut('donutPlatform','legendPlatform', platSorted.map((p,i)=>({label:p, value:Math.max(byPlat[p],0), color:DONUT_PALETTE[i%DONUT_PALETTE.length]})), {title:'Platform Klik', valueFmt:v=>fmtRpFull(v), centerLabel:`<div><div style="font-size:15px;font-weight:700;color:var(--text)">${fmtRp(platTotal)}</div><div>Total Komisi</div></div>`});
+
+  // zero rate & avg komisi/item (dibatalkan diabaikan, bukan order/item yang dihitung)
+  // order dianggap dibatalkan kalau SALAH SATU baris/item pesanan itu berstatus Dibatalkan
+  const cancelledOidsProduk = new Set();
+  sf.forEach(s=>{ if(/dibatal/i.test(s.status||'')) cancelledOidsProduk.add(s.oid); });
+  const sfActive = sf.filter(s=>!cancelledOidsProduk.has(s.oid));
+  const totalItems = sfActive.length, zeroCount = sfActive.filter(s=>s.komisi===0).length;
+  const zeroPct = totalItems>0 ? (zeroCount/totalItems*100) : 0;
+  document.getElementById('zeroRateVal').textContent = zeroPct.toFixed(1)+'%';
+  document.getElementById('zeroRateFoot').textContent = zeroCount+' dari '+totalItems+' item';
+  const nonZero = sf.filter(s=>s.komisi>0);
+  const avgKomisi = nonZero.length>0 ? nonZero.reduce((a,s)=>a+s.komisi,0)/nonZero.length : 0;
+  document.getElementById('avgKomisiVal').textContent = fmtRpFull(avgKomisi);
+  document.getElementById('avgKomisiFoot').textContent = nonZero.length+' item yang dapat komisi';
+
+  // top 15 produk by komisi — khusus pembeli lama (bukan pembeli baru, bukan dibatalkan),
+  // biar angkanya representasi komisi produk yang real, bukan ketolong bonus new user
+  const byProduk = {};
+  sf.filter(s=>!s.newUser && !cancelledOidsProduk.has(s.oid)).forEach(s=>{
+    const key = s.produk||'Tanpa nama';
+    if(!byProduk[key]) byProduk[key] = {produk:key, kategori:s.kategori||'Lainnya', komisi:0, items:0};
+    byProduk[key].komisi += s.komisi;
+    byProduk[key].items += 1;
+  });
+  const topProduk = Object.values(byProduk).sort((a,b)=>b.komisi-a.komisi).slice(0,15);
+  document.getElementById('produkBody').innerHTML = topProduk.length ? topProduk.map(p=>`
+    <tr>
+      <td style="white-space:normal;max-width:340px">${p.produk}</td>
+      <td style="color:var(--muted)">${p.kategori}</td>
+      <td style="color:${p.komisi>0?'var(--bad)':'var(--muted)'};font-weight:500">${fmtRpFull(p.komisi)}</td>
+      <td style="font-weight:500">${fmtInt(p.items)}</td>
+      <td style="font-weight:500">${fmtRpFull(p.komisi/p.items)}</td>
+    </tr>`).join('') : `<tr><td colspan="5" style="color:var(--muted)">Tidak ada data produk pada periode yang difilter.</td></tr>`;
+
+  // distribusi tanggal klik (gap hari antara klik dan pesanan) untuk KESELURUHAN komisi,
+  // bukan per-tag — cookie Shopee bertahan sampai 7 hari, jadi kita tampilkan 0-7+ hari sebelumnya.
+  // dedup per order (1 order bisa punya beberapa baris/item dengan klik/tanggal yang sama)
+  const gapByOrder = {};
+  sf.forEach(s=>{
+    if(!s.oid || cancelledOidsProduk.has(s.oid) || !s.klikDate || !s.date) return;
+    if(gapByOrder[s.oid]!=null) return;
+    const diff = Math.round((new Date(s.date+'T00:00:00') - new Date(s.klikDate+'T00:00:00'))/86400000);
+    if(diff<0) return;
+    gapByOrder[s.oid] = diff;
+  });
+  const gapCounts = {};
+  let gapTotal = 0;
+  Object.values(gapByOrder).forEach(d=>{
+    const key = d>=7 ? '7+' : String(d);
+    gapCounts[key] = (gapCounts[key]||0)+1;
+    gapTotal++;
+  });
+  const gapOrder = ['7+','6','5','4','3','2','1','0'];
+  const gapMax = Math.max(1, ...gapOrder.map(k=>gapCounts[k]||0));
+  const gapLabel = k => k==='0' ? 'Klik hari yang sama' : (k==='7+' ? '7+ hari sebelumnya' : k+' hari sebelumnya');
+  document.getElementById('gapDistWrap').innerHTML = gapTotal ? gapOrder.map(k=>{
+    const c = gapCounts[k]||0;
+    const pct = gapTotal>0 ? (c/gapTotal*100) : 0;
+    const widthPct = (c/gapMax*100);
+    const isSame = k==='0';
+    return `<div class="gaprow${isSame?' today':''}">
+      <div class="gaplabel">${gapLabel(k)}</div>
+      <div class="gaptrack"><div class="gapfill${isSame?' same':''}" style="width:${widthPct}%"></div></div>
+      <div class="gapcount">${fmtInt(c)}</div>
+      <div class="gappct">${pct.toFixed(0)}%</div>
+    </div>`;
+  }).join('') : '<div style="color:var(--muted);font-size:12px">Tidak ada data klik/order pada periode ini (butuh kolom Waktu Klik).</div>';
+  document.getElementById('gapDistFoot').textContent = 'Total '+fmtInt(gapTotal)+' pesanan dari '+gapOrder.filter(k=>gapCounts[k]).length+' selisih hari klik berbeda';
+}
+
+let attrMinSpend = null, attrMaxSpend = null;
+let attrSortKey = 'komisi', attrSortDir = -1;
+let expandedAttrib = null;
+const ATTR_KEYS = ['campaign','akun','spend','komisi','net','roas','roi','cpc','epc','newUser','orders','avgOrder','realCpc','realRate','clicks','klikShopee'];
+function applyAttrFilter(){
+  const minV = document.getElementById('attrMinSpend').value.trim();
+  const maxV = document.getElementById('attrMaxSpend').value.trim();
+  attrMinSpend = minV ? num(minV) : null;
+  attrMaxSpend = maxV ? num(maxV) : null;
+  renderAttribution();
+}
+function resetAttrFilter(){
+  document.getElementById('attrMinSpend').value = '';
+  document.getElementById('attrMaxSpend').value = '';
+  attrMinSpend = null; attrMaxSpend = null;
+  renderAttribution();
+}
+function buildTagProductBreakdown(tag){
+  const key = tag.toLowerCase();
+  const from = overview.from, to = overview.to;
+  const inRange = d => d && (!from || d>=from) && (!to || d<=to);
+  const rows = (rawShopee||[]).filter(s=>s.tag && s.tag.toLowerCase()===key && inRange(s.date));
+  const byProduk = {}, platformCounts = {}, statusCounts = {};
+  rows.forEach(s=>{
+    platformCounts[s.platform] = (platformCounts[s.platform]||0)+1;
+    statusCounts[s.status] = (statusCounts[s.status]||0)+1;
+    const k = s.produk || 'Tanpa nama';
+    if(!byProduk[k]) byProduk[k] = {produk:k, kategori:s.kategori||'Lainnya', komisi:0, items:0, statusCounts:{}};
+    byProduk[k].komisi += s.komisi;
+    byProduk[k].items += 1;
+    byProduk[k].statusCounts[s.status] = (byProduk[k].statusCounts[s.status]||0)+1;
+  });
+  const products = Object.values(byProduk).map(p=>{
+    let topStatus='—', topCount=0;
+    Object.keys(p.statusCounts).forEach(st=>{ if(p.statusCounts[st]>topCount){ topCount=p.statusCounts[st]; topStatus=st; } });
+    return Object.assign({}, p, {topStatus});
+  }).sort((a,b)=>b.komisi-a.komisi);
+  return {rows, products, platformCounts, statusCounts};
+}
+function statusColor(s){
+  const t=(s||'').toLowerCase();
+  if(t.includes('batal')) return 'var(--bad2)';
+  if(t.includes('selesai')) return 'var(--good)';
+  if(t.includes('tunda')||t.includes('proses')) return 'var(--warn)';
+  return 'var(--muted)';
+}
+function statusTheme(status, noMeta, highNewUser){
+  if(noMeta){
+    if(status==='SCALE') return {label:'Hijau — komisi tanpa iklan Meta', color:'var(--good)', bg:'rgba(62,207,126,.08)', border:'rgba(62,207,126,.35)',
+      arahan:'Tag ini menghasilkan komisi tapi campaign Meta-nya tidak ketemu di periode ini (kemungkinan sudah off/dihapus, atau memang organik). Tidak ada biaya iklan yang tercatat, jadi ini murni profit — cek lagi apakah campaign-nya perlu dinyalakan ulang.'};
+    if(status==='TAHAN') return {label:'Kuning — tahan & pantau', color:'var(--warn)', bg:'rgba(242,184,75,.08)', border:'rgba(242,184,75,.35)',
+      arahan:'Estimasi bonus Shopee Rp50rb/pembeli baru sudah menyumbang ≥80% dari total komisi tag ini. Datanya belum representatif untuk performa normal (tanpa bonus) — tahan dulu, jangan buru-buru dianggap murni profit organik.'};
+    return {label:'Merah — cek tag ini', color:'var(--bad2)', bg:'rgba(255,90,90,.08)', border:'rgba(255,90,90,.35)',
+      arahan:'Tag ini tidak ketemu campaign Meta aktif dan komisinya Rp0. Kemungkinan tag salah ketik atau campaign sudah lama off.'};
+  }
+  if(status==='SCALE') return {label:'Hijau — kandidat scale', color:'var(--good)', bg:'rgba(62,207,126,.08)', border:'rgba(62,207,126,.35)',
+    arahan:'Boleh discale bertahap karena ROAS sudah ≥1.5x. Naikkan budget pelan-pelan, jangan agresif, dan pantau performa 1–2 hari setelah dinaikkan.'};
+  if(status==='KILL') return {label:'Merah — kandidat kill', color:'var(--bad2)', bg:'rgba(255,90,90,.08)', border:'rgba(255,90,90,.35)',
+    arahan:'ROAS di bawah 1x, artinya rugi. Pertimbangkan turunkan budget, ganti materi iklan/tag, atau hentikan campaign ini.'};
+  if(highNewUser) return {label:'Kuning — tahan & pantau', color:'var(--warn)', bg:'rgba(242,184,75,.08)', border:'rgba(242,184,75,.35)',
+    arahan:'ROAS sebenarnya sudah ≥1.5x, tapi estimasi bonus Shopee Rp50rb/pembeli baru sudah menyumbang ≥80% dari total komisi — jadi ROAS-nya belum tentu valid untuk discale. Tahan budget dulu sampai ada lebih banyak data dari pembeli lama/repeat.'};
+  return {label:'Kuning — tahan & pantau', color:'var(--warn)', bg:'rgba(242,184,75,.08)', border:'rgba(242,184,75,.35)',
+    arahan:'ROAS di kisaran 1x–1.5x, belum cukup kuat untuk discale tapi belum rugi. Tahan budget dan pantau performa beberapa hari ke depan.'};
+}
+function buildRekomendasiHtml(r){
+  const newUserKomisiPct = r.newUserKomisiPct||0;
+  const highNewUser = !r.noMeta ? (r.roas!==null && r.roas>=1.5 && newUserKomisiPct>=80) : (r.komisi>0 && newUserKomisiPct>=80);
+  const th = statusTheme(r.status, r.noMeta, highNewUser);
+  const avgOrder = r.avgOrder!=null ? r.avgOrder : (r.orders>0 ? r.komisi/r.orders : 0);
+  const alasan = [];
+  if(!r.noMeta){
+    alasan.push(`ROAS ${r.roas===null?'∞':r.roas.toFixed(2)+'x'} · ROI ${r.roi===null?'∞':r.roi.toFixed(1)+'%'} · Net ${r.net>=0?'+':''}${fmtRpFull(r.net)}.`);
+    alasan.push(`EPC Rp${fmtInt(r.epc)} ${r.epc>r.cpc?'mengalahkan':'kalah dari'} CPC Meta Rp${fmtInt(r.cpc)}.`);
+  }
+  if(r.klikShopee>0) alasan.push(`Real Rate ${r.realRate.toFixed(1)}% (Klik Shopee ÷ Klik Meta) · Real CPC Rp${fmtInt(r.realCpc)}.`);
+  alasan.push(`Spend Rp${fmtInt(r.spend)} menghasilkan ${fmtInt(r.orders)} pesanan, avg Rp${fmtInt(avgOrder)}/order.`);
+  if(r.orders>0) alasan.push(`${fmtInt(r.newUser||0)} dari ${fmtInt(r.orders)} pesanan (${(r.newUserPct||0).toFixed(0)}%) dari pembeli baru — estimasi bonus Shopee Rp50rb/pembeli baru = Rp${fmtInt((r.newUser||0)*50000)} (${newUserKomisiPct.toFixed(0)}% dari total komisi).`);
+  const sumberHtml = r.orders>0 ? `
+    <div class="reksumber" style="background:rgba(242,184,75,.1);border:1px solid rgba(242,184,75,.4)">
+      <div class="reklabel" style="color:var(--warn)">SUMBER KOMISI</div>
+      <div class="rektext">${(r.sameDayPct||0).toFixed(1)}% klik hari yang sama, ${(r.cookiePct||0).toFixed(1)}% cookies sebelumnya.</div>
+    </div>` : '';
+  return `<div class="rekwrap">
+    <div class="rekhead" style="color:${th.color}">${th.label}</div>
+    <div class="rekarahan" style="background:${th.bg};border:1px solid ${th.border}">
+      <div class="reklabel" style="color:${th.color}">ARAHAN</div>
+      <div class="rektext">${th.arahan}</div>
+    </div>
+    <div class="reklabel" style="color:var(--muted)">ALASAN</div>
+    <ul class="reklist">${alasan.map(a=>`<li>${a}</li>`).join('')}</ul>
+    ${sumberHtml}
+    <div class="rekfoot">Clicks ${fmtInt(r.clicks)} · Orders ${fmtInt(r.orders)}${r.klikShopee>0?' · Klik Shopee '+fmtInt(r.klikShopee):''}</div>
+  </div>`;
+}
+function renderAttribDetail(r){
+  const tagKey = r.tagLink || r.campaign;
+  const {products, platformCounts, statusCounts} = buildTagProductBreakdown(tagKey);
+  const platTxt = Object.keys(platformCounts).sort((a,b)=>platformCounts[b]-platformCounts[a]).map(p=>`${p} (${platformCounts[p]})`).join(' · ') || '—';
+  const statTxt = Object.keys(statusCounts).sort((a,b)=>statusCounts[b]-statusCounts[a]).map(s=>`<span style="color:${statusColor(s)}">${s} ${statusCounts[s]}</span>`).join(' · ') || '—';
+  const rowsHtml = products.length ? products.map(p=>`
+    <tr>
+      <td>${p.produk}</td>
+      <td style="color:var(--muted)">${p.kategori}</td>
+      <td style="color:${p.komisi>0?'var(--bad)':'var(--muted)'};font-weight:500">${fmtRpFull(p.komisi)}</td>
+      <td style="font-weight:500">${fmtInt(p.items)}</td>
+      <td style="font-weight:500">${fmtRpFull(p.items>0?p.komisi/p.items:0)}</td>
+      <td style="color:${statusColor(p.topStatus)};font-weight:500">${p.topStatus}</td>
+    </tr>`).join('')
+    : `<tr><td colspan="6" style="color:var(--muted)">Tidak ada data produk untuk tag ini pada periode yang difilter.</td></tr>`;
+  return `<tr class="attrib-detail"><td colspan="18"><div class="bdwrap">
+    <div class="bdmeta">Platform: <b>${platTxt}</b> &nbsp;·&nbsp; Status: ${statTxt}</div>
+    <div class="bdtitle">${products.length} PRODUK — semua pesanan untuk tag ini</div>
+    <div class="tablewrap" style="max-height:420px;overflow-y:auto">
+    <table><thead><tr><th>Produk</th><th>Kategori</th><th>Komisi (Rp)</th><th>Items</th><th>Avg/Item</th><th>Status Terbanyak</th></tr></thead>
+    <tbody>${rowsHtml}</tbody></table>
+    </div>
+  </div></td></tr>`;
+}
+function updateAttrSortArrows(){
+  ATTR_KEYS.forEach(k=>{
+    const el = document.getElementById('aarrow-'+k);
+    if(el) el.textContent = (attrSortKey===k) ? (attrSortDir===1?'▲':'▼') : '';
+  });
+}
+function renderAttribution(){
+  const tbody = document.getElementById('attribBody');
+  if(!tbody) return;
+  let rows = (campRows||[]).map(r=>({...r,
+    akun:r.akun||'—', match:r.match||'—', epc:r.epc||0, klikShopee:r.klikShopee||0, realCpc:r.realCpc||0, realRate:r.realRate||0, sameDayPct:r.sameDayPct||0, cookiePct:r.cookiePct||0,
+    avgOrder: r.orders>0 ? r.komisi/r.orders : 0}));
+  const total = rows.length;
+  if(attrMinSpend!=null) rows = rows.filter(r=>r.spend>=attrMinSpend);
+  if(attrMaxSpend!=null) rows = rows.filter(r=>r.spend<=attrMaxSpend);
+  rows.sort((a,b)=>{
+    let av=a[attrSortKey], bv=b[attrSortKey];
+    if(attrSortKey==='campaign'){ av = a.tagLink||a.campaign; bv = b.tagLink||b.campaign; }
+    if(typeof av==='string') return attrSortDir*av.localeCompare(bv);
+    if((attrSortKey==='roas'||attrSortKey==='roi')){ av = av===null?Infinity:av; bv = bv===null?Infinity:bv; }
+    return attrSortDir*((av||0)-(bv||0));
+  });
+  document.getElementById('attrCount').textContent = `Tampil ${rows.length} dari ${total} tag`;
+  // urutan Akun N mengikuti urutan workspace (Workspace 1 = Akun 1, dst), bukan urutan spend di tabel
+  const akunLabelMap = akunOrderMap;
+  tbody.innerHTML = rows.length ? rows.map(r=>`
+    <tr class="camprow" data-camp="${r.campaign.replace(/"/g,'&quot;')}">
+      <td class="camp-name">${r.tagLink || r.campaign}</td>
+      <td style="color:#ff8a5b;font-weight:600" title="${(r.akun||'—').replace(/"/g,'&quot;')}">${r.akun && r.akun!=='—' ? (akunLabelMap[r.akun]||r.akun) : '—'}</td>
+      <td class="camp-name" style="color:var(--text);font-weight:500" title="${r.match.replace(/"/g,'&quot;')}">${r.match}</td>
+      <td>${fmtRpFull(r.spend)}</td>
+      <td style="color:${r.komisi>0?'var(--bad)':'var(--muted)'};font-weight:500">${fmtRpFull(r.komisi)}</td>
+      <td class="${r.net>=0?'pos':'neg'}" style="font-weight:500">${r.net>=0?'+':''}${fmtRpFull(r.net)}</td>
+      <td style="color:${r.roas===null?'var(--muted)':roasColor(r.roas)};font-weight:500">${r.roas===null?'—':r.roas.toFixed(2)+'x'}</td>
+      <td style="color:${r.roi===null?'var(--muted)':roiColor(r.roi)};font-weight:500">${r.roi===null?'—':r.roi.toFixed(1)+'%'}</td>
+      <td>${fmtRpFull(r.cpc)}</td>
+      <td style="color:${r.epc>r.cpc?'var(--good)':'var(--bad2)'};font-weight:500">${fmtRpFull(r.epc)}</td>
+      <td style="color:${r.orders>0?(r.newUser>0?'var(--warn)':'var(--muted)'):'var(--muted)'};font-weight:${r.newUser>0?'700':'500'}">${r.orders>0?fmtInt(r.newUser):'—'}</td>
+      <td><span class="tag ${r.status==='SCALE'?'scale':r.status==='KILL'?'kill':'tahan'}" style="cursor:help" onmouseenter="showRekForCamp(event,'${r.campaign.replace(/'/g,"\\'")}')" onmouseleave="hideRekPopup()">${r.status}</span></td>
+      <td>${fmtInt(r.orders)}</td>
+      <td>${fmtRpFull(r.avgOrder)}</td>
+      <td>${r.klikShopee>0?fmtRpFull(r.realCpc):'—'}</td>
+      <td style="color:${r.klikShopee>0?rateColor(r.realRate):'var(--muted)'};font-weight:500;cursor:${r.orders>0?'help':'default'}" ${r.orders>0?`onmouseenter="showHelp(event,'${sourceTip(r).replace(/'/g,"&#39;")}')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()"`:''}>${r.klikShopee>0?r.realRate.toFixed(1)+'%':'—'}</td>
+      <td>${fmtInt(r.clicks)}</td>
+      <td style="cursor:${r.orders>0?'help':'default'}" ${r.orders>0?`onmouseenter="showHelp(event,'${sourceTip(r).replace(/'/g,"&#39;")}')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()"`:''}>${r.klikShopee>0?fmtInt(r.klikShopee):'—'}</td>
+    </tr>${expandedAttrib===r.campaign ? renderAttribDetail(r) : ''}`).join('')
+    : `<tr><td colspan="18" style="color:var(--muted)">Tidak ada tag yang cocok dengan filter spend.</td></tr>`;
+  updateAttrSortArrows();
+}
+document.getElementById('attribTable').addEventListener('click', e=>{
+  const th = e.target.closest('th');
+  if(th){
+    const k = th.dataset.k;
+    if(!k) return;
+    if(attrSortKey===k) attrSortDir*=-1; else { attrSortKey=k; attrSortDir=-1; }
+    renderAttribution();
+    return;
+  }
+  const row = e.target.closest('.camprow');
+  if(row){
+    const camp = row.dataset.camp;
+    expandedAttrib = (expandedAttrib===camp) ? null : camp;
+    renderAttribution();
+  }
+});
+
+let sortKey='spend', sortDir=-1;
+let expandedCamp = null;
+function buildCampaignBreakdown(campaign){
+  const key = campaign.toLowerCase();
+  const from = overview.from, to = overview.to;
+  const inRange = d => d && (!from || d>=from) && (!to || d<=to);
+  const ppnOn = overview.ppnOn, ppnMult = 1 + (ppnOn ? (overview.ppnPct||0)/100 : 0);
+  const dayMap = {};
+  (rawMeta||[]).filter(m=>m.campaign && m.campaign.toLowerCase()===key && inRange(m.date)).forEach(m=>{
+    const d = dayMap[m.date] = dayMap[m.date] || {spend:0, clicks:0, komisi:0, orders:new Set()};
+    d.spend += ppnOn ? m.spend*ppnMult : m.spend;
+    d.clicks += m.clicks;
+  });
+  (rawShopee||[]).filter(s=>s.tag && s.tag.toLowerCase()===key && inRange(s.date) && (!selPlatforms || selPlatforms.has(s.platform))).forEach(s=>{
+    const d = dayMap[s.date] = dayMap[s.date] || {spend:0, clicks:0, komisi:0, orders:new Set()};
+    d.komisi += s.komisi;
+    d.orders.add(s.oid);
+  });
+  return Object.keys(dayMap).filter(Boolean).sort((a,b)=>b.localeCompare(a)).map(dt=>{
+    const d = dayMap[dt];
+    return {date:dt, spend:d.spend, komisi:d.komisi, roas:d.spend>0?d.komisi/d.spend:0, orders:d.orders.size, clicks:d.clicks};
+  });
+}
+function renderBreakdownRow(campaign){
+  const days = buildCampaignBreakdown(campaign);
+  const rowsHtml = days.length ? days.map(d=>`
+    <tr>
+      <td>${d.date}</td>
+      <td>${fmtRpFull(d.spend)}</td>
+      <td style="color:${d.komisi>0?'var(--good)':'var(--muted)'}">${fmtRpFull(d.komisi)}</td>
+      <td style="color:${roasColor(d.roas)}">${d.roas.toFixed(2)}x</td>
+      <td>${fmtInt(d.orders)}</td>
+      <td>${fmtInt(d.clicks)}</td>
+    </tr>`).join('') : `<tr><td colspan="6" style="color:var(--muted)">Tidak ada data harian untuk campaign ini pada periode yang difilter.</td></tr>`;
+  return `<tr class="camp-breakdown"><td colspan="6"><div class="bdwrap">
+    <div class="bdtitle">BREAKDOWN HARIAN — ${days.length} HARI (sesuai filter tanggal aktif)</div>
+    <table><thead><tr><th>Tanggal</th><th>Spend</th><th>Komisi</th><th>ROAS</th><th>Orders</th><th>Klik Meta</th></tr></thead>
+    <tbody>${rowsHtml}</tbody></table>
+  </div></td></tr>`;
+}
+function updateSortArrows(){
+  ['campaign','spend','clicks','ctr','cpc','cpm'].forEach(k=>{
+    const el = document.getElementById('arrow-'+k);
+    if(el) el.textContent = (sortKey===k) ? (sortDir===1?'▲':'▼') : '';
+  });
+}
+function renderCampaigns(){
+  const rows = [...campRows].sort((a,b)=>{
+    const av=a[sortKey], bv=b[sortKey];
+    if(typeof av==='string') return sortDir*av.localeCompare(bv);
+    return sortDir*(av-bv);
+  });
+  document.getElementById('campBody').innerHTML = rows.map(r=>`
+    <tr class="camprow" data-camp="${r.campaign.replace(/"/g,'&quot;')}">
+      <td class="camp-name">${r.campaign}${r.workspace?` <span style="color:var(--muted);font-size:11px">(${r.workspace})</span>`:''}</td>
+      <td style="font-weight:500">${fmtRpFull(r.spend)}</td>
+      <td style="font-weight:500">${fmtInt(r.clicks)}</td>
+      <td style="font-weight:500">${r.ctr.toFixed(1)}%</td>
+      <td style="font-weight:500">${fmtRpFull(r.cpc)}</td>
+      <td style="font-weight:500">${fmtRpFull(r.cpm)}</td>
+    </tr>${expandedCamp===r.campaign ? renderBreakdownRow(r.campaign) : ''}`).join('');
+  updateSortArrows();
+}
+document.getElementById('campTable').addEventListener('click', e=>{
+  const th = e.target.closest('th');
+  if(th){
+    const k = th.dataset.k;
+    if(sortKey===k) sortDir*=-1; else { sortKey=k; sortDir=-1; }
+    renderCampaigns();
+    return;
+  }
+  const row = e.target.closest('.camprow');
+  if(row){
+    const camp = row.dataset.camp;
+    expandedCamp = (expandedCamp===camp) ? null : camp;
+    renderCampaigns();
+  }
+});
+
+document.querySelectorAll('.navitem').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('.navitem').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
