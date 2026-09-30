@@ -1780,7 +1780,7 @@ function renderTrafficDetail(r){
   const rowsHtml = r.tags.length ? r.tags.map(t=>{
     const roasTxt = t.roas===null?'—':t.roas.toFixed(2)+'x';
     return `<tr>
-      <td>${t.tag}</td>
+      <td class="camp-name">${t.tag}</td>
       <td>${fmtRpFull(t.spend)}</td>
       <td style="color:${t.komisi>0?'var(--bad)':'var(--muted)'};font-weight:500">${fmtRpFull(t.komisi)}</td>
       <td style="color:${t.net>=0?'var(--good)':'var(--bad2)'};font-weight:500">${t.net>=0?'+':''}${fmtRpFull(t.net)}</td>
@@ -1808,7 +1808,7 @@ function renderSumberTrafik(){
     const roasCol = r.roas===null?'var(--muted)':roasColor(r.roas);
     const sub = expandedTraffic===r.platform ? renderTrafficDetail(r) : '';
     return `<tr class="camprow" data-plat="${r.platform.replace(/"/g,'&quot;')}">
-      <td class="camp-name">${r.platform}</td>
+      <td>${r.platform}</td>
       <td>${fmtRpFull(r.spend)}</td>
       <td style="color:${r.komisi>0?'var(--bad)':'var(--muted)'};font-weight:500">${fmtRpFull(r.komisi)}</td>
       <td style="color:${r.net>=0?'var(--good)':'var(--bad2)'};font-weight:500">${r.net>=0?'+':''}${fmtRpFull(r.net)}</td>
