@@ -353,6 +353,10 @@ select{flex:1;min-width:140px}
     <label>Target/hari <input type="text" id="targetInput" value="500000" onchange="refreshOverview()" style="width:90px"></label>
     <span class="orderscount" id="orderscount"></span>
   </div>
+  <div class="section" style="padding:14px 18px" id="wsFilterSection">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted);margin-bottom:10px">WORKSPACE</div>
+    <div class="ovctrl" id="wsFilterPills"></div>
+  </div>
   <div class="section" style="padding:14px 18px">
     <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted);margin-bottom:10px">FILTER SUMBER TRAFIK</div>
     <div class="ovctrl" id="platformPills"></div>
@@ -760,13 +764,47 @@ function getLatestSnapshot(wsId){
   if(!idx.length) return null;
   return lsGet(idx[0].key, null);
 }
+let selectedWsId = null; // null = semua workspace (gabungan) atau ikut "Workspace ini"; diisi id workspace kalau user klik pill workspace tertentu
 function setViewMode(mode){
   viewMode = mode;
+  selectedWsId = null;
   document.querySelectorAll('.viewbtn').forEach(b=>b.classList.toggle('active', b.dataset.view===mode));
   applyViewMode();
 }
+function selectWsFilter(wsId){
+  selectedWsId = wsId;
+  if(!wsId){
+    setViewMode('all');
+    return;
+  }
+  const snap = getLatestSnapshot(wsId);
+  if(!snap) return;
+  activeOverview = snap.overview; activeCampRows = snap.campRows||[];
+  activeRawMeta = snap.rawMeta||[]; activeRawShopee = snap.rawShopee||[]; activeRawClicks = snap.rawClicks||[];
+  currentWs = wsId;
+  viewMode = 'single';
+  document.querySelectorAll('.viewbtn').forEach(b=>b.classList.toggle('active', b.dataset.view==='single'));
+  document.getElementById('dateFrom').value=''; document.getElementById('dateTo').value='';
+  applyViewMode();
+}
+function renderWsFilterPills(){
+  const sectionEl = document.getElementById('wsFilterSection');
+  const el = document.getElementById('wsFilterPills');
+  if(!sectionEl || !el) return;
+  const list = getWorkspaces().filter(w=>getLatestSnapshot(w.id));
+  if(list.length<=1){ sectionEl.style.display='none'; el.innerHTML=''; return; }
+  sectionEl.style.display='';
+  const allActive = viewMode==='all' && !selectedWsId;
+  let html = `<button class="pill ${allActive?'active':''}" onclick="selectWsFilter(null)">Semua</button>`;
+  html += list.map(w=>{
+    const active = selectedWsId===w.id || (viewMode==='single' && !selectedWsId && currentWs===w.id);
+    return `<button class="pill ${active?'active':''}" onclick="selectWsFilter('${w.id}')">${w.name}</button>`;
+  }).join('');
+  el.innerHTML = html;
+}
 function applyViewMode(){
   const bd = document.getElementById('wsBreakdown');
+  renderWsFilterPills();
   if(viewMode==='all'){
     const list = getWorkspaces();
     let ts=0,tk=0,tc=0,ti=0,tl=0,tzero=0,titems=0,allOrders=0;
