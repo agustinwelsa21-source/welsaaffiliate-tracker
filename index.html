@@ -363,7 +363,7 @@ select{flex:1;min-width:140px}
     <div class="ovctrl" id="platformPills"></div>
   </div>
   <div class="section" style="padding:14px 18px" id="akunPillsSection">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted);margin-bottom:10px">AKUN SHOPEE</div>
+    <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted);margin-bottom:10px">FILTER WORKSPACE</div>
     <div class="ovctrl" id="akunPills"></div>
   </div>
   <div class="section" style="padding:14px 18px" id="wsFilterSection">
@@ -602,6 +602,12 @@ function toggleAkun(a){
   if(selAkuns.has(a)) selAkuns.delete(a); else selAkuns.add(a);
   if(selAkuns.size===0) selAkuns=null;
   refreshOverview();
+  renderCampaigns(); renderAttribution();
+}
+function resetAkunFilter(){
+  selAkuns = null;
+  refreshOverview();
+  renderCampaigns(); renderAttribution();
 }
 function renderAkunPills(sfAll){
   const el = document.getElementById('akunPills');
@@ -612,10 +618,11 @@ function renderAkunPills(sfAll){
   if(akuns.length<=1){ el.innerHTML=''; document.getElementById('akunPillsSection').style.display='none'; return; }
   document.getElementById('akunPillsSection').style.display='';
   const allActive = !selAkuns;
-  let html = `<button class="pill pill-akun ${allActive?'active':''}" onclick="selAkuns=null;refreshOverview()">Semua Akun <b>${sfAll.length}</b></button>`;
-  html += akuns.map(a=>{
+  let html = `<button class="pill pill-akun ${allActive?'active':''}" onclick="resetAkunFilter()">Semua Workspace <b>${sfAll.length}</b></button>`;
+  html += akuns.map((a,i)=>{
     const active = selAkuns && selAkuns.has(a);
-    return `<button class="pill pill-akun ${active?'active':''}" onclick="toggleAkun('${a.replace(/'/g,'')}')">${a} <b>${counts[a]}</b></button>`;
+    const label = (akunOrderMap[a]||'').replace(/^Akun/,'Workspace') || ('Workspace '+(i+1));
+    return `<button class="pill pill-akun ${active?'active':''}" onclick="toggleAkun('${a.replace(/'/g,'')}')">${label} <b>${counts[a]}</b></button>`;
   }).join('');
   el.innerHTML = html;
 }
@@ -749,7 +756,8 @@ function refreshOverview(){
   const target = num(document.getElementById('targetInput').value) || 500000;
   const inRange = d => d && d>=from && d<=to;
 
-  const mf = rawMeta.filter(m=>inRange(m.date));
+  let mf = rawMeta.filter(m=>inRange(m.date));
+  if(selAkuns) mf = mf.filter(m=>selAkuns.has(m.akun));
   let ts=0,tc=0,ti=0,tl=0;
   mf.forEach(m=>{ts+=m.spend;tc+=m.clicks;ti+=m.impr;tl+=m.lp;});
   if(ppnOn) ts*=ppnMult;
@@ -864,7 +872,7 @@ function renderAkunBreakdown(){
     const roas = g.spend>0 ? g.komisi/g.spend : 0;
     const share = totalKomisi>0 ? (g.komisi/totalKomisi*100) : 0;
     const label = (akunOrderMap[g.name]||'').replace(/^Akun/,'Workspace') || ('Workspace '+(i+1));
-    return `<div class="card" style="padding:12px 16px"><div class="lbl" style="font-size:11px">${label}</div><div class="val" style="font-size:17px;margin-top:2px">${fmtRp(g.komisi)}</div><div class="foot">ROAS <span class="${roas>=1?'pos':'neg'}">${roas.toFixed(2)}x</span> · Net ${fmtRp(g.net)} · ${share.toFixed(0)}% · ${fmtInt(g.orders)} orders</div></div>`;
+    return `<div class="card" style="padding:12px 16px"><div class="lbl" style="font-size:11px">${label}</div><div class="val" style="font-size:17px;margin-top:2px;color:${g.net>=0?'var(--good)':'var(--bad2)'}">${fmtRp(g.komisi)}</div><div class="foot">ROAS <span class="${roas>=1?'pos':'neg'}">${roas.toFixed(2)}x</span> · Net ${fmtRp(g.net)} · ${share.toFixed(0)}% · ${fmtInt(g.orders)} orders</div></div>`;
   }).join('');
 }
 function applyViewMode(){
@@ -1654,7 +1662,7 @@ function updateAttrSortArrows(){
 function renderAttribution(){
   const tbody = document.getElementById('attribBody');
   if(!tbody) return;
-  let rows = (campRows||[]).map(r=>({...r,
+  let rows = (campRows||[]).filter(r=>!selAkuns || selAkuns.has(r.akun)).map(r=>({...r,
     akun:r.akun||'—', match:r.match||'—', epc:r.epc||0, klikShopee:r.klikShopee||0, realCpc:r.realCpc||0, realRate:r.realRate||0, sameDayPct:r.sameDayPct||0, cookiePct:r.cookiePct||0,
     avgOrder: r.orders>0 ? r.komisi/r.orders : 0}));
   const total = rows.length;
@@ -1758,7 +1766,7 @@ function updateSortArrows(){
   });
 }
 function renderCampaigns(){
-  const rows = [...campRows].sort((a,b)=>{
+  const rows = campRows.filter(r=>!selAkuns || selAkuns.has(r.akun)).sort((a,b)=>{
     const av=a[sortKey], bv=b[sortKey];
     if(typeof av==='string') return sortDir*av.localeCompare(bv);
     return sortDir*(av-bv);
