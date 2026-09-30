@@ -551,7 +551,7 @@ select{flex:1;min-width:140px}
         <div class="tablehint">Klik baris platform untuk lihat breakdown per tag link</div>
       </div>
       <div class="foot" id="trafficNote" style="margin:2px 0 8px"></div>
-      <div class="foot" style="margin:0 0 14px;padding:10px 12px;background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.25);border-radius:8px;color:#e0b45a">⚠ Kolom Platform di sisi <b>Komisi</b> itu hasil deteksi otomatis Shopee dari klik (bukan dari Meta), dan sering salah kenalin in-app browser Threads/Instagram — kebaca sebagai "Website"/"Others" walau aslinya dari iklan. Jadi ROAS Instagram/Threads di bawah bisa keliatan lebih kecil dari aslinya, dan "Website"/"Others" bisa keliatan untung padahal sebagian didorong iklan juga.</div>
+      <div class="foot" style="margin:0 0 14px;padding:10px 12px;background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.25);border-radius:8px;color:#e0b45a">⚠ Shopee cuma bisa ngenalin klik <b>Facebook</b> &amp; <b>Instagram</b> secara reliable dari sisi Komisi — klik dari in-app browser Threads (dan sumber lain yang gagal kedeteksi) kebaca sebagai "Websites"/"Others"/"Google Search". Karena itu, semua komisi yang platformnya bukan Facebook/Instagram di bawah ini digabung ke <b>Threads</b>.</div>
       <div class="tablewrap">
         <table id="trafficTable">
           <thead><tr>
@@ -1746,7 +1746,11 @@ function buildTrafficSourceRows(){
   });
   const komisiMap = {}; // platform -> tagKeyLower -> {tag, komisi, orders:Set}
   sf.forEach(s=>{
-    const plat = s.platform || 'Lainnya';
+    // Shopee cuma bisa ngenalin klik Facebook & Instagram secara reliable — sisanya (Websites/Others/
+    // Google Search/dll, termasuk in-app browser Threads yang gagal kedeteksi) digabung ke Threads,
+    // karena volume spend Threads jauh lebih dominan dibanding platform lain yang tak terdeteksi.
+    const rawPlat = s.platform || 'Lainnya';
+    const plat = (rawPlat==='Facebook' || rawPlat==='Instagram') ? rawPlat : 'Threads';
     const tag = normTag(s.tag);
     if(!tag) return;
     const key = tag.toLowerCase();
