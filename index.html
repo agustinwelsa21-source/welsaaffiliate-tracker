@@ -872,7 +872,7 @@ function renderAkunBreakdown(){
     const roas = g.spend>0 ? g.komisi/g.spend : 0;
     const share = totalKomisi>0 ? (g.komisi/totalKomisi*100) : 0;
     const label = (akunOrderMap[g.name]||'').replace(/^Akun/,'Workspace') || ('Workspace '+(i+1));
-    return `<div class="card" style="padding:12px 16px"><div class="lbl" style="font-size:11px">${label}</div><div class="val" style="font-size:17px;margin-top:2px;color:${g.net>=0?'var(--good)':'var(--bad2)'}">${fmtRp(g.komisi)}</div><div class="foot">ROAS <span class="${roas>=1?'pos':'neg'}">${roas.toFixed(2)}x</span> · Net ${fmtRp(g.net)} · ${share.toFixed(0)}% · ${fmtInt(g.orders)} orders</div></div>`;
+    return `<div class="card" style="padding:12px 16px"><div class="lbl" style="font-size:11px">${label}</div><div class="val" style="font-size:17px;margin-top:2px;color:${g.net>=0?'var(--good)':'var(--bad2)'}">${fmtRp(g.komisi)}</div><div class="foot">ROAS <span style="color:${roasColor(roas)};font-weight:600">${roas.toFixed(2)}x</span> · Net ${fmtRp(g.net)} · ${share.toFixed(0)}% · ${fmtInt(g.orders)} orders</div></div>`;
   }).join('');
 }
 function applyViewMode(){
