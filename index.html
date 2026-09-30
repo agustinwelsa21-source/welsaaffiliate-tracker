@@ -802,42 +802,59 @@ function renderWsFilterPills(){
   }).join('');
   el.innerHTML = html;
 }
-function applyViewMode(){
+function renderAkunBreakdown(){
+  // breakdown per workspace/akun Meta (bukan per sesi tersimpan) — dihitung dari campRows yang lagi aktif,
+  // jalan di mode "Workspace ini" maupun "Gabungan Semua Workspace", asal ada >1 akun berbeda di datanya
   const bd = document.getElementById('wsBreakdown');
+  if(!bd) return;
+  const groups = {};
+  (campRows||[]).forEach(r=>{
+    const key = (r.akun||'').trim();
+    if(!key || key==='—' || key.includes(',')) return;
+    if(!groups[key]) groups[key] = {name:key, spend:0, komisi:0, net:0, orders:0};
+    groups[key].spend += r.spend||0;
+    groups[key].komisi += r.komisi||0;
+    groups[key].net += r.net||0;
+    groups[key].orders += r.orders||0;
+  });
+  const list = Object.values(groups);
+  if(list.length<=1){ bd.style.display='none'; bd.innerHTML=''; return; }
+  const totalSpend = list.reduce((s,g)=>s+g.spend,0) || 1;
+  bd.style.display='grid';
+  bd.innerHTML = list.map(g=>{
+    const roas = g.spend>0 ? g.komisi/g.spend : 0;
+    const share = totalSpend>0 ? (g.spend/totalSpend*100) : 0;
+    return `<div class="card"><div class="lbl">${g.name.toUpperCase()}</div><div class="val">${fmtRp(g.spend)}</div><div class="foot">ROAS <span class="${roas>=1?'pos':'neg'}">${roas.toFixed(2)}x</span> · Net ${fmtRp(g.net)} · ${share.toFixed(0)}% · ${fmtInt(g.orders)} orders</div></div>`;
+  }).join('');
+}
+function applyViewMode(){
   renderWsFilterPills();
   if(viewMode==='all'){
     const list = getWorkspaces();
     let ts=0,tk=0,tc=0,ti=0,tl=0,tzero=0,titems=0,allOrders=0;
-    const wsCards=[]; let mergedCamp=[];
+    let mergedCamp=[];
     list.forEach(w=>{
       const snap = getLatestSnapshot(w.id);
       if(!snap) return;
       const o = snap.overview;
       ts+=o.totalSpend||0; tk+=o.totalKomisi||0; tc+=o.totalClicks||0; ti+=o.totalImpr||0; tl+=o.totalLp||0;
       tzero+=o.zeroCount||0; titems+=o.totalItems||0; allOrders+=o.uniqueOrders||0;
-      wsCards.push({name:w.name, spend:o.totalSpend||0, roas:o.roas||0, net:o.netProfit||0, orders:o.uniqueOrders||0});
       (snap.campRows||[]).forEach(c=> mergedCamp.push(Object.assign({}, c, {workspace:w.name})));
     });
     const netProfit=tk-ts, roas= ts>0?tk/ts:0, roi= ts>0?(netProfit/ts*100):0;
     const lpRate = tc>0?(tl/tc*100):0, zeroPct= titems>0?(tzero/titems*100):0;
     overview = {totalSpend:ts,totalKomisi:tk,netProfit,roas,roi,totalClicks:tc,totalImpr:ti,totalLp:tl,lpRate,uniqueOrders:allOrders,totalItems:titems,zeroCount:tzero,zeroPct};
     campRows = mergedCamp;
-    bd.style.display='grid';
-    bd.innerHTML = wsCards.length ? wsCards.map(w=>{
-      const share = ts>0? (w.spend/ts*100):0;
-      return `<div class="card"><div class="lbl">${w.name.toUpperCase()}</div><div class="val">${fmtRp(w.spend)}</div><div class="foot">ROAS <span class="${w.roas>=1?'pos':'neg'}">${w.roas.toFixed(2)}x</span> · Net ${fmtRp(w.net)} · ${share.toFixed(0)}% · ${fmtInt(w.orders)} orders</div></div>`;
-    }).join('') : '<div class="histempty">Belum ada data tersimpan di workspace manapun.</div>';
+    renderOverview();
   } else {
     overview = activeOverview; campRows = activeCampRows;
     rawMeta = activeRawMeta; rawShopee = activeRawShopee; rawClicks = activeRawClicks;
-    bd.style.display='none'; bd.innerHTML='';
     if(rawMeta.length || rawShopee.length){
       if(!document.getElementById('dateFrom').value) setRangeAll(); else refreshOverview();
     } else { renderOverview(); }
-    renderCampaigns(); renderFunnel(); renderAttribution();
-    return;
   }
-  renderOverview(); renderCampaigns(); renderFunnel(); renderAttribution();
+  renderAkunBreakdown();
+  renderCampaigns(); renderFunnel(); renderAttribution();
 }
 
 function lsGet(k, fallback){ try{ const v = localStorage.getItem(k); return v?JSON.parse(v):fallback; }catch(e){ return fallback; } }
