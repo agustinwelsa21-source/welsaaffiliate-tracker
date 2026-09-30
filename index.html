@@ -551,7 +551,7 @@ select{flex:1;min-width:140px}
         <div class="tablehint">Klik baris platform untuk lihat breakdown per tag link</div>
       </div>
       <div class="foot" id="trafficNote" style="margin:2px 0 8px"></div>
-      <div class="foot" style="margin:0 0 14px;padding:10px 12px;background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.25);border-radius:8px;color:#e0b45a">⚠ Shopee cuma bisa ngenalin klik <b>Facebook</b> &amp; <b>Instagram</b> secara reliable dari sisi Komisi — klik dari in-app browser Threads (dan sumber lain yang gagal kedeteksi) kebaca sebagai "Websites"/"Others"/"Google Search". Karena itu, semua komisi yang platformnya bukan Facebook/Instagram di bawah ini digabung ke <b>Threads</b>.</div>
+      <div class="foot" style="margin:0 0 14px;padding:10px 12px;background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.25);border-radius:8px;color:#e0b45a">⚠ Sumber trafik dikelompokkan jadi 2: <b>Facebook</b> (dideteksi reliable di kedua sisi) dan <b>Threads &amp; IG</b> (gabungan Threads + Instagram + traffic lain yang gagal kedeteksi Shopee sebagai "Websites"/"Others"/dll) — karena di setup iklan kamu, Threads selalu jalan bareng Instagram dalam 1 ad set.</div>
       <div class="tablewrap">
         <table id="trafficTable">
           <thead><tr>
@@ -1733,24 +1733,24 @@ function buildTrafficSourceRows(){
   // hanya oleh filter Workspace (selAkuns) — biar konsisten dengan campRows
   const mf = (rawMeta||[]).filter(m=>!selAkuns || selAkuns.has(m.akun));
   const sf = (rawShopee||[]).filter(s=>(!selAkuns || selAkuns.has(s.akun)) && !/dibatal/i.test(s.status||''));
-  const spendMap = {}; // platform -> campaignKeyLower -> {campaign, spend}
+  // Facebook dipisah sendiri (paling reliable dideteksi kedua sisi), sisanya (Threads, Instagram,
+  // Websites/Others/Google Search/dll yang gagal kedeteksi) digabung jadi 1 sumber "Threads & IG" —
+  // karena di setup iklannya, Threads selalu jalan bareng Instagram dalam 1 ad set.
+  function trafficBucket(p){ return p==='Facebook' ? 'Facebook' : 'Threads & IG'; }
+  const spendMap = {}; // bucket -> campaignKeyLower -> {campaign, spend}
   let hasPlatformCol = false;
   mf.forEach(m=>{
     if(m.platform && m.platform!=='Lainnya') hasPlatformCol = true;
-    const plat = m.platform || 'Lainnya';
+    const plat = trafficBucket(m.platform || 'Lainnya');
     const key = (m.campaign||'').trim().toLowerCase();
     if(!key) return;
     spendMap[plat] = spendMap[plat] || {};
     if(!spendMap[plat][key]) spendMap[plat][key] = {campaign:m.campaign, spend:0};
     spendMap[plat][key].spend += m.spend||0;
   });
-  const komisiMap = {}; // platform -> tagKeyLower -> {tag, komisi, orders:Set}
+  const komisiMap = {}; // bucket -> tagKeyLower -> {tag, komisi, orders:Set}
   sf.forEach(s=>{
-    // Shopee cuma bisa ngenalin klik Facebook & Instagram secara reliable — sisanya (Websites/Others/
-    // Google Search/dll, termasuk in-app browser Threads yang gagal kedeteksi) digabung ke Threads,
-    // karena volume spend Threads jauh lebih dominan dibanding platform lain yang tak terdeteksi.
-    const rawPlat = s.platform || 'Lainnya';
-    const plat = (rawPlat==='Facebook' || rawPlat==='Instagram') ? rawPlat : 'Threads';
+    const plat = trafficBucket(s.platform || 'Lainnya');
     const tag = normTag(s.tag);
     if(!tag) return;
     const key = tag.toLowerCase();
