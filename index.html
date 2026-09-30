@@ -551,7 +551,7 @@ select{flex:1;min-width:140px}
         <div class="tablehint">Klik baris platform untuk lihat breakdown per tag link</div>
       </div>
       <div class="foot" id="trafficNote" style="margin:2px 0 8px"></div>
-      <div class="foot" style="margin:0 0 14px;padding:10px 12px;background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.25);border-radius:8px;color:#e0b45a">⚠ Sumber trafik dikelompokkan jadi 2: <b>Facebook</b> (dideteksi reliable di kedua sisi) dan <b>Threads &amp; IG</b> (gabungan Threads + Instagram + traffic lain yang gagal kedeteksi Shopee sebagai "Websites"/"Others"/dll) — karena di setup iklan kamu, Threads selalu jalan bareng Instagram dalam 1 ad set.</div>
+      <div class="foot" style="margin:0 0 14px;padding:10px 12px;background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.25);border-radius:8px;color:#e0b45a">⚠ Sumber trafik dikelompokkan jadi: <b>Facebook</b>, <b>Threads &amp; IG</b> (gabungan Threads + Instagram + "Websites" — karena in-app browser Threads/IG sering kebaca "Websites" sama Shopee), dan <b>Lainnya</b> (Others/Google Search/dll — traffic yang beda dan tidak diasumsikan dari Threads/IG).</div>
       <div class="tablewrap">
         <table id="trafficTable">
           <thead><tr>
@@ -1736,7 +1736,11 @@ function buildTrafficSourceRows(){
   // Facebook dipisah sendiri (paling reliable dideteksi kedua sisi), sisanya (Threads, Instagram,
   // Websites/Others/Google Search/dll yang gagal kedeteksi) digabung jadi 1 sumber "Threads & IG" —
   // karena di setup iklannya, Threads selalu jalan bareng Instagram dalam 1 ad set.
-  function trafficBucket(p){ return p==='Facebook' ? 'Facebook' : 'Threads & IG'; }
+  function trafficBucket(p){
+    if(p==='Facebook') return 'Facebook';
+    if(p==='Threads' || p==='Instagram' || p==='Websites' || p==='Website') return 'Threads & IG';
+    return 'Lainnya'; // Others, Google Search, Tanpa Kategori, dll — bukan diasumsikan Threads/IG
+  }
   const spendMap = {}; // bucket -> campaignKeyLower -> {campaign, spend}
   let hasPlatformCol = false;
   mf.forEach(m=>{
