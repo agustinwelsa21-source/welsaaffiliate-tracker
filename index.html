@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Affiliate Tracker</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#0c0c0c; --panel:#1b1b1b; --panel2:#222222; --line:#2c2c2c;
@@ -234,6 +235,9 @@ select{flex:1;min-width:140px}
 .pill{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer}
 .pill.active{border-color:var(--accent);color:var(--accent)}
 .pill b{font-weight:700}
+.pill-ws{border-color:transparent}
+.pill-ws.active{border-color:#5b8def;color:#5b8def;background:rgba(91,141,239,.1)}
+.pill-akun.active{background:rgba(255,90,46,.1)}
 .banner{background:rgba(91,143,249,.08);border:1px solid rgba(91,143,249,.25);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--muted);margin-bottom:10px}
 .banner b{color:var(--text)}
 .orderscount{font-size:12px;color:var(--muted);margin-left:auto}
@@ -284,7 +288,7 @@ select{flex:1;min-width:140px}
 <div id="upload" class="wrap">
   <header class="top">
     <div class="logo">
-      <div class="mark">A</div>
+      <div class="mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="5" height="9" rx="1" fill="#fff"/><rect x="9.5" y="6" width="5" height="15" rx="1" fill="#fff"/><rect x="16" y="2" width="5" height="19" rx="1" fill="#fff" opacity=".85"/></svg></div>
       <div><h1>Affiliate Dashboard</h1><div class="sub">Shopee × Meta Ads Tracker</div></div>
     </div>
     <button class="ghost" onclick="alert('1. Buat workspace, isi nama (contoh: Aisyah Store).\n2. Upload 1 CSV Meta Ads untuk workspace itu.\n3. Kasih nama tiap akun Shopee lalu upload CSV komisinya (bisa lebih dari 1 akun Shopee per workspace).\n4. Klik + Tambah Workspace kalau punya akun Meta lain.\n5. Klik Mulai Analisa.\n\nData diproses di browser kamu, tidak dikirim ke server manapun.')">? Panduan</button>
@@ -323,7 +327,7 @@ select{flex:1;min-width:140px}
 <div id="dash" class="app">
   <aside class="sidebar">
     <div class="logo">
-      <div class="mark">A</div>
+      <div class="mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="12" width="5" height="9" rx="1" fill="#fff"/><rect x="9.5" y="6" width="5" height="15" rx="1" fill="#fff"/><rect x="16" y="2" width="5" height="19" rx="1" fill="#fff" opacity=".85"/></svg></div>
       <div><h1>Affiliate</h1><div class="sub">Dashboard</div></div>
     </div>
     <nav class="navlist">
@@ -334,6 +338,7 @@ select{flex:1;min-width:140px}
       <div class="navitem" data-tab="atribusi">Atribusi</div>
     </nav>
     <div class="sidebar-spacer"></div>
+    <button class="ghost" style="width:100%" onclick="exportExcel()">⬇ Export Excel</button>
     <button class="ghost" style="width:100%" onclick="resetAll()">Ganti file</button>
   </aside>
   <main class="main">
@@ -353,13 +358,17 @@ select{flex:1;min-width:140px}
     <label>Target/hari <input type="text" id="targetInput" value="500000" onchange="refreshOverview()" style="width:90px"></label>
     <span class="orderscount" id="orderscount"></span>
   </div>
-  <div class="section" style="padding:14px 18px" id="wsFilterSection">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted);margin-bottom:10px">WORKSPACE</div>
-    <div class="ovctrl" id="wsFilterPills"></div>
-  </div>
   <div class="section" style="padding:14px 18px">
     <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted);margin-bottom:10px">FILTER SUMBER TRAFIK</div>
     <div class="ovctrl" id="platformPills"></div>
+  </div>
+  <div class="section" style="padding:14px 18px" id="akunPillsSection">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted);margin-bottom:10px">AKUN SHOPEE</div>
+    <div class="ovctrl" id="akunPills"></div>
+  </div>
+  <div class="section" style="padding:14px 18px" id="wsFilterSection">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted);margin-bottom:10px">WORKSPACE</div>
+    <div class="ovctrl" id="wsFilterPills"></div>
   </div>
 
   <div class="banner">ℹ️ Meta CSV terdeteksi dalam <b>Bahasa Indonesia</b> — semua kolom terbaca normal.</div>
@@ -381,9 +390,9 @@ select{flex:1;min-width:140px}
   <div class="grid" id="wsBreakdown"></div>
 
   <div id="panel-overview" class="panel active">
-    <div class="section" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div><h3>SPEND VS KOMISI</h3><div id="spendVsKomisi"></div></div>
-      <div><h3>NET PROFIT HARIAN</h3><div id="netProfitHarian"></div></div>
+    <div class="section flat" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card" style="padding:16px"><h3>SPEND VS KOMISI</h3><div id="spendVsKomisi"></div></div>
+      <div class="card" style="padding:16px"><h3>NET PROFIT HARIAN</h3><div id="netProfitHarian"></div></div>
     </div>
     <div class="section">
       <h3>REKAP HARIAN</h3>
@@ -552,7 +561,12 @@ function isValidNewUser(r){
   if((r['_newUserCell']||'').toString().trim().toLowerCase()!=='baru') return false;
   return (r._purchaseValue||0) > 0;
 }
-let selPlatforms = null, sensorOn = false;
+let selPlatforms = null, selAkuns = null, sensorOn = false;
+const PILL_DOT_PALETTE = ['#5b8def','#3ecf8e','#e0c341','#a15bde','#e05b8e','#5bd0de','#de8f5b','#ff6b3d','#7ede5b','#5b64de'];
+function pillDotColor(name, allNames){
+  const idx = allNames.indexOf(name);
+  return PILL_DOT_PALETTE[(idx>=0?idx:0) % PILL_DOT_PALETTE.length];
+}
 
 function toDateKey(s){
   if(!s) return '';
@@ -563,7 +577,7 @@ function toDateKey(s){
 }
 function buildLite(metaRows, shopeeRows, clickRows){
   rawMeta = metaRows.map(r=>({date:toDateKey(r['Awal pelaporan']), campaign:(r['Nama kampanye']||'').trim(), akun:r['_akun']||'Akun 1', spend:num(r['Jumlah yang dibelanjakan (IDR)']), clicks:num(r['Klik tautan']), impr:num(r['Impresi']), lp:num(r['Tayangan halaman tujuan'])}));
-  rawShopee = shopeeRows.map(r=>({date:toDateKey(r['Waktu Pemesanan']), klikDate:toDateKey(r['Waktu Klik']), platform:(r['Platform']||'Lainnya').trim()||'Lainnya', komisi:num(r['Komisi Bersih Affiliate (Rp)']), tag:normTag(r['Tag_link1']), oid:r['ID Pemesanan'], produk:(r['Nama Barange']||'Tanpa nama').trim()||'Tanpa nama', kategori:(r['L1 Kategori Global']||'Lainnya').trim()||'Lainnya', status:(r['Status Pesanan']||'—').trim()||'—', newUser:isValidNewUser(r)})).filter(x=>x.oid);
+  rawShopee = shopeeRows.map(r=>({date:toDateKey(r['Waktu Pemesanan']), klikDate:toDateKey(r['Waktu Klik']), platform:(r['Platform']||'Lainnya').trim()||'Lainnya', komisi:num(r['Komisi Bersih Affiliate (Rp)']), tag:normTag(r['Tag_link1']), oid:r['ID Pemesanan'], produk:(r['Nama Barange']||'Tanpa nama').trim()||'Tanpa nama', kategori:(r['L1 Kategori Global']||'Lainnya').trim()||'Lainnya', status:(r['Status Pesanan']||'—').trim()||'—', newUser:isValidNewUser(r), akun:(r['_shopeeAkun']||'').trim()||'—'})).filter(x=>x.oid);
   rawClicks = (clickRows||[]).map(r=>({tag:normTag(r['Tag_link']), date:toDateKey(r['Waktu Klik']), platform:(r['Perujuk']||'').trim()})).filter(x=>x.tag);
 }
 function getBounds(){
@@ -583,6 +597,28 @@ function togglePlatform(p){
   if(selPlatforms.size===0) selPlatforms=null;
   refreshOverview();
 }
+function toggleAkun(a){
+  if(!selAkuns) selAkuns = new Set();
+  if(selAkuns.has(a)) selAkuns.delete(a); else selAkuns.add(a);
+  if(selAkuns.size===0) selAkuns=null;
+  refreshOverview();
+}
+function renderAkunPills(sfAll){
+  const el = document.getElementById('akunPills');
+  if(!el) return;
+  const counts={};
+  sfAll.forEach(s=>{ const a=s.akun||'—'; counts[a]=(counts[a]||0)+1; });
+  const akuns = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+  if(akuns.length<=1){ el.innerHTML=''; document.getElementById('akunPillsSection').style.display='none'; return; }
+  document.getElementById('akunPillsSection').style.display='';
+  const allActive = !selAkuns;
+  let html = `<button class="pill pill-akun ${allActive?'active':''}" onclick="selAkuns=null;refreshOverview()">Semua Akun <b>${sfAll.length}</b></button>`;
+  html += akuns.map(a=>{
+    const active = selAkuns && selAkuns.has(a);
+    return `<button class="pill pill-akun ${active?'active':''}" onclick="toggleAkun('${a.replace(/'/g,'')}')">${a} <b>${counts[a]}</b></button>`;
+  }).join('');
+  el.innerHTML = html;
+}
 function renderPlatformPills(sfAll){
   const counts={};
   sfAll.forEach(s=>{ counts[s.platform]=(counts[s.platform]||0)+1; });
@@ -591,7 +627,8 @@ function renderPlatformPills(sfAll){
   let html = `<button class="pill ${allActive?'active':''}" onclick="selPlatforms=null;refreshOverview()">Semua <b>${sfAll.length}</b></button>`;
   html += platforms.map(p=>{
     const active = selPlatforms && selPlatforms.has(p);
-    return `<button class="pill ${active?'active':''}" onclick="togglePlatform('${p.replace(/'/g,'')}')">${p} <b>${counts[p]}</b></button>`;
+    const dot = pillDotColor(p, platforms);
+    return `<button class="pill ${active?'active':''}" onclick="togglePlatform('${p.replace(/'/g,'')}')"><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dot};margin-right:6px"></i>${p} <b>${counts[p]}</b></button>`;
   }).join('');
   document.getElementById('platformPills').innerHTML = html;
 }
@@ -718,7 +755,8 @@ function refreshOverview(){
   if(ppnOn) ts*=ppnMult;
 
   const sfAll = rawShopee.filter(s=>inRange(s.date));
-  const sf = selPlatforms ? sfAll.filter(s=>selPlatforms.has(s.platform)) : sfAll;
+  let sf = selPlatforms ? sfAll.filter(s=>selPlatforms.has(s.platform)) : sfAll;
+  if(selAkuns) sf = sf.filter(s=>selAkuns.has(s.akun));
   // order dianggap dibatalkan kalau SALAH SATU baris/item pesanan itu berstatus Dibatalkan
   const cancelledOids = new Set();
   sf.forEach(s=>{ if(/dibatal/i.test(s.status||'')) cancelledOids.add(s.oid); });
@@ -755,6 +793,7 @@ function refreshOverview(){
   renderDailyChart(days);
   renderDailyTable(days);
   renderPlatformPills(sfAll);
+  renderAkunPills(rawShopee.filter(s=>inRange(s.date)));
   document.getElementById('orderscount').textContent = uniqueOrders+' / '+sfAll.length+' orders ('+(sfAll.length>0?(uniqueOrders/sfAll.length*100).toFixed(0):0)+'%)';
   renderProduk(sf, sfAll);
 }
@@ -795,10 +834,10 @@ function renderWsFilterPills(){
   if(list.length<=1){ sectionEl.style.display='none'; el.innerHTML=''; return; }
   sectionEl.style.display='';
   const allActive = viewMode==='all' && !selectedWsId;
-  let html = `<button class="pill ${allActive?'active':''}" onclick="selectWsFilter(null)">Semua</button>`;
+  let html = `<button class="pill pill-ws ${allActive?'active':''}" onclick="selectWsFilter(null)">Semua</button>`;
   html += list.map(w=>{
     const active = selectedWsId===w.id || (viewMode==='single' && !selectedWsId && currentWs===w.id);
-    return `<button class="pill ${active?'active':''}" onclick="selectWsFilter('${w.id}')">${w.name}</button>`;
+    return `<button class="pill pill-ws ${active?'active':''}" onclick="selectWsFilter('${w.id}')">${w.name}</button>`;
   }).join('');
   el.innerHTML = html;
 }
@@ -819,12 +858,13 @@ function renderAkunBreakdown(){
   });
   const list = Object.values(groups);
   if(list.length<=1){ bd.style.display='none'; bd.innerHTML=''; return; }
-  const totalSpend = list.reduce((s,g)=>s+g.spend,0) || 1;
+  const totalKomisi = list.reduce((s,g)=>s+g.komisi,0) || 1;
   bd.style.display='grid';
-  bd.innerHTML = list.map(g=>{
+  bd.innerHTML = list.map((g,i)=>{
     const roas = g.spend>0 ? g.komisi/g.spend : 0;
-    const share = totalSpend>0 ? (g.spend/totalSpend*100) : 0;
-    return `<div class="card"><div class="lbl">${g.name.toUpperCase()}</div><div class="val">${fmtRp(g.spend)}</div><div class="foot">ROAS <span class="${roas>=1?'pos':'neg'}">${roas.toFixed(2)}x</span> · Net ${fmtRp(g.net)} · ${share.toFixed(0)}% · ${fmtInt(g.orders)} orders</div></div>`;
+    const share = totalKomisi>0 ? (g.komisi/totalKomisi*100) : 0;
+    const label = (akunOrderMap[g.name]||'').replace(/^Akun/,'Workspace') || ('Workspace '+(i+1));
+    return `<div class="card" style="padding:12px 16px"><div class="lbl" style="font-size:11px">${label}</div><div class="val" style="font-size:17px;margin-top:2px">${fmtRp(g.komisi)}</div><div class="foot">ROAS <span class="${roas>=1?'pos':'neg'}">${roas.toFixed(2)}x</span> · Net ${fmtRp(g.net)} · ${share.toFixed(0)}% · ${fmtInt(g.orders)} orders</div></div>`;
   }).join('');
 }
 function applyViewMode(){
@@ -915,7 +955,7 @@ function loadSnapshot(key){
   if(!snap) return;
   activeOverview = snap.overview; activeCampRows = snap.campRows;
   activeRawMeta = snap.rawMeta||[]; activeRawShopee = snap.rawShopee||[]; activeRawClicks = snap.rawClicks||[];
-  selPlatforms = null;
+  selPlatforms = null; selAkuns = null;
   document.getElementById('dateFrom').value=''; document.getElementById('dateTo').value='';
   viewMode='single';
   document.querySelectorAll('.viewbtn').forEach(b=>b.classList.toggle('active', b.dataset.view==='single'));
@@ -1112,7 +1152,7 @@ async function processFiles(){
     activeOverview = overview; activeCampRows = campRows;
     activeRawMeta = rawMeta; activeRawShopee = rawShopee; activeRawClicks = rawClicks;
     saveSnapshot();
-    viewMode='single'; selPlatforms=null;
+    viewMode='single'; selPlatforms=null; selAkuns=null;
     document.getElementById('dateFrom').value=''; document.getElementById('dateTo').value='';
     document.querySelectorAll('.viewbtn').forEach(b=>b.classList.toggle('active', b.dataset.view==='single'));
     applyViewMode();
@@ -1124,6 +1164,27 @@ async function processFiles(){
   }
 }
 
+function exportExcel(){
+  if(!campRows || !campRows.length){ alert('Belum ada data untuk di-export.'); return; }
+  const rows = campRows.map(r=>({
+    'Tag/Campaign': r.tagLink || r.campaign,
+    'Akun': r.akun || '—',
+    'Match': r.match || '—',
+    'Spend': Math.round(r.spend||0),
+    'Komisi': Math.round(r.komisi||0),
+    'Net': Math.round(r.net||0),
+    'ROAS': r.roas!=null ? Number(r.roas.toFixed(2)) : '',
+    'ROI (%)': r.roi!=null ? Number(r.roi.toFixed(1)) : '',
+    'Orders': r.orders||0,
+    'New User': r.newUser||0,
+    'Status': r.status||''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Atribusi');
+  const today = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, 'affiliate-tracker-'+today+'.xlsx');
+}
 function resetAll(){
   document.getElementById('dash').style.display='none';
   document.getElementById('upload').style.display='block';
