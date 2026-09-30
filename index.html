@@ -336,6 +336,7 @@ select{flex:1;min-width:140px}
       <div class="navitem" data-tab="produk">Produk</div>
       <div class="navitem" data-tab="funnel">Funnel</div>
       <div class="navitem" data-tab="atribusi">Atribusi</div>
+      <div class="navitem" data-tab="sumber">Sumber Trafik</div>
     </nav>
     <div class="sidebar-spacer"></div>
     <button class="ghost" style="width:100%" onclick="exportExcel()">⬇ Export Excel</button>
@@ -543,6 +544,29 @@ select{flex:1;min-width:140px}
     </div>
   </div>
 
+  <div id="panel-sumber" class="panel">
+    <div class="section">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+        <h3>KOMISI &amp; SPEND PER SUMBER TRAFIK</h3>
+        <div class="tablehint">Klik baris platform untuk lihat breakdown per tag link</div>
+      </div>
+      <div class="foot" id="trafficNote" style="margin:2px 0 12px"></div>
+      <div class="tablewrap">
+        <table id="trafficTable">
+          <thead><tr>
+            <th>Platform</th>
+            <th>Spend</th>
+            <th>Komisi</th>
+            <th>Net</th>
+            <th>ROAS</th>
+            <th>Orders</th>
+          </tr></thead>
+          <tbody id="trafficBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </main>
 </div>
 
@@ -576,7 +600,7 @@ function toDateKey(s){
   return s.slice(0,10);
 }
 function buildLite(metaRows, shopeeRows, clickRows){
-  rawMeta = metaRows.map(r=>({date:toDateKey(r['Awal pelaporan']), campaign:(r['Nama kampanye']||'').trim(), akun:r['_akun']||'Akun 1', spend:num(r['Jumlah yang dibelanjakan (IDR)']), clicks:num(r['Klik tautan']), impr:num(r['Impresi']), lp:num(r['Tayangan halaman tujuan'])}));
+  rawMeta = metaRows.map(r=>({date:toDateKey(r['Awal pelaporan']), campaign:(r['Nama kampanye']||'').trim(), akun:r['_akun']||'Akun 1', platform:(r['Platform']||'').trim()||'Lainnya', penempatan:(r['Penempatan']||'').trim(), spend:num(r['Jumlah yang dibelanjakan (IDR)']), clicks:num(r['Klik tautan']), impr:num(r['Impresi']), lp:num(r['Tayangan halaman tujuan'])}));
   rawShopee = shopeeRows.map(r=>({date:toDateKey(r['Waktu Pemesanan']), klikDate:toDateKey(r['Waktu Klik']), platform:(r['Platform']||'Lainnya').trim()||'Lainnya', komisi:num(r['Komisi Bersih Affiliate (Rp)']), tag:normTag(r['Tag_link1']), oid:r['ID Pemesanan'], produk:(r['Nama Barange']||'Tanpa nama').trim()||'Tanpa nama', kategori:(r['L1 Kategori Global']||'Lainnya').trim()||'Lainnya', status:(r['Status Pesanan']||'—').trim()||'—', newUser:isValidNewUser(r), akun:(r['_shopeeAkun']||'').trim()||'—'})).filter(x=>x.oid);
   rawClicks = (clickRows||[]).map(r=>({tag:normTag(r['Tag_link']), date:toDateKey(r['Waktu Klik']), platform:(r['Perujuk']||'').trim()})).filter(x=>x.tag);
 }
@@ -602,12 +626,12 @@ function toggleAkun(a){
   if(selAkuns.has(a)) selAkuns.delete(a); else selAkuns.add(a);
   if(selAkuns.size===0) selAkuns=null;
   refreshOverview();
-  renderCampaigns(); renderAttribution();
+  renderCampaigns(); renderAttribution(); renderSumberTrafik();
 }
 function resetAkunFilter(){
   selAkuns = null;
   refreshOverview();
-  renderCampaigns(); renderAttribution();
+  renderCampaigns(); renderAttribution(); renderSumberTrafik();
 }
 function renderAkunPills(sfAll){
   const el = document.getElementById('akunPills');
@@ -902,7 +926,7 @@ function applyViewMode(){
     } else { renderOverview(); }
   }
   renderAkunBreakdown();
-  renderCampaigns(); renderFunnel(); renderAttribution();
+  renderCampaigns(); renderFunnel(); renderAttribution(); renderSumberTrafik();
 }
 
 function lsGet(k, fallback){ try{ const v = localStorage.getItem(k); return v?JSON.parse(v):fallback; }catch(e){ return fallback; } }
@@ -1702,6 +1726,105 @@ function renderAttribution(){
     : `<tr><td colspan="18" style="color:var(--muted)">Tidak ada tag yang cocok dengan filter spend.</td></tr>`;
   updateAttrSortArrows();
 }
+let expandedTraffic = null;
+function buildTrafficSourceRows(){
+  // catatan: sama seperti tab Campaigns/Atribusi, breakdown ini tidak difilter oleh date range di Overview,
+  // hanya oleh filter Workspace (selAkuns) — biar konsisten dengan campRows
+  const mf = (rawMeta||[]).filter(m=>!selAkuns || selAkuns.has(m.akun));
+  const sf = (rawShopee||[]).filter(s=>(!selAkuns || selAkuns.has(s.akun)) && !/dibatal/i.test(s.status||''));
+  const spendMap = {}; // platform -> campaignKeyLower -> {campaign, spend}
+  let hasPlatformCol = false;
+  mf.forEach(m=>{
+    if(m.platform && m.platform!=='Lainnya') hasPlatformCol = true;
+    const plat = m.platform || 'Lainnya';
+    const key = (m.campaign||'').trim().toLowerCase();
+    if(!key) return;
+    spendMap[plat] = spendMap[plat] || {};
+    if(!spendMap[plat][key]) spendMap[plat][key] = {campaign:m.campaign, spend:0};
+    spendMap[plat][key].spend += m.spend||0;
+  });
+  const komisiMap = {}; // platform -> tagKeyLower -> {tag, komisi, orders:Set}
+  sf.forEach(s=>{
+    const plat = s.platform || 'Lainnya';
+    const tag = normTag(s.tag);
+    if(!tag) return;
+    const key = tag.toLowerCase();
+    komisiMap[plat] = komisiMap[plat] || {};
+    if(!komisiMap[plat][key]) komisiMap[plat][key] = {tag, komisi:0, orders:new Set()};
+    komisiMap[plat][key].komisi += s.komisi||0;
+    komisiMap[plat][key].orders.add(s.oid);
+  });
+  const platforms = new Set([...Object.keys(spendMap), ...Object.keys(komisiMap)]);
+  const result = [];
+  platforms.forEach(plat=>{
+    const camp = spendMap[plat]||{};
+    const kom = komisiMap[plat]||{};
+    const tagKeys = new Set([...Object.keys(camp), ...Object.keys(kom)]);
+    let pSpend=0, pKomisi=0, pOrders=0;
+    const tags = [];
+    tagKeys.forEach(k=>{
+      const c = camp[k], q = kom[k];
+      const spend = c ? c.spend : 0;
+      const komisi = q ? q.komisi : 0;
+      const orders = q ? q.orders.size : 0;
+      pSpend += spend; pKomisi += komisi; pOrders += orders;
+      tags.push({tag: q ? q.tag : (c ? c.campaign : k), spend, komisi, orders, net: komisi-spend, roas: spend>0 ? komisi/spend : null});
+    });
+    tags.sort((a,b)=>b.komisi-a.komisi);
+    result.push({platform:plat, spend:pSpend, komisi:pKomisi, net:pKomisi-pSpend, roas: pSpend>0 ? pKomisi/pSpend : null, orders:pOrders, tags});
+  });
+  result.sort((a,b)=>b.komisi-a.komisi);
+  return {rows:result, hasPlatformCol};
+}
+function renderTrafficDetail(r){
+  const rowsHtml = r.tags.length ? r.tags.map(t=>{
+    const roasTxt = t.roas===null?'—':t.roas.toFixed(2)+'x';
+    return `<tr>
+      <td>${t.tag}</td>
+      <td>${fmtRpFull(t.spend)}</td>
+      <td style="color:${t.komisi>0?'var(--bad)':'var(--muted)'};font-weight:500">${fmtRpFull(t.komisi)}</td>
+      <td class="${t.net>=0?'pos':'neg'}" style="font-weight:500">${t.net>=0?'+':''}${fmtRpFull(t.net)}</td>
+      <td style="color:${t.roas===null?'var(--muted)':roasColor(t.roas)};font-weight:500">${roasTxt}</td>
+      <td>${fmtInt(t.orders)}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="color:var(--muted)">Tidak ada data tag untuk platform ini.</td></tr>`;
+  return `<tr class="camp-breakdown"><td colspan="6"><div class="bdwrap">
+    <div class="bdtitle">BREAKDOWN PER TAG LINK — ${r.platform.toUpperCase()}</div>
+    <table><thead><tr><th>Tag</th><th>Spend</th><th>Komisi</th><th>Net</th><th>ROAS</th><th>Orders</th></tr></thead>
+    <tbody>${rowsHtml}</tbody></table>
+  </div></td></tr>`;
+}
+function renderSumberTrafik(){
+  const tbody = document.getElementById('trafficBody');
+  if(!tbody) return;
+  const {rows, hasPlatformCol} = buildTrafficSourceRows();
+  const noteEl = document.getElementById('trafficNote');
+  if(noteEl) noteEl.textContent = hasPlatformCol
+    ? 'Spend dihitung dari kolom Platform di CSV Meta, Komisi dari kolom Platform di CSV Shopee, dicocokkan per Tag Link.'
+    : 'CSV Meta belum ada kolom Platform (export dengan breakdown "Platform") — Spend di bawah belum terpisah per platform. Komisi tetap akurat dari data Shopee.';
+  if(!rows.length){ tbody.innerHTML = '<tr><td colspan="6" style="color:var(--muted)">Belum ada data untuk rentang tanggal / filter ini.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r=>{
+    const roasTxt = r.roas===null?'—':r.roas.toFixed(2)+'x';
+    const roasCol = r.roas===null?'var(--muted)':roasColor(r.roas);
+    const sub = expandedTraffic===r.platform ? renderTrafficDetail(r) : '';
+    return `<tr class="camprow" data-plat="${r.platform.replace(/"/g,'&quot;')}">
+      <td class="camp-name">${r.platform}</td>
+      <td>${fmtRpFull(r.spend)}</td>
+      <td style="color:${r.komisi>0?'var(--bad)':'var(--muted)'};font-weight:500">${fmtRpFull(r.komisi)}</td>
+      <td class="${r.net>=0?'pos':'neg'}" style="font-weight:500">${r.net>=0?'+':''}${fmtRpFull(r.net)}</td>
+      <td style="color:${roasCol};font-weight:500">${roasTxt}</td>
+      <td>${fmtInt(r.orders)}</td>
+    </tr>${sub}`;
+  }).join('');
+}
+document.getElementById('trafficTable').addEventListener('click', e=>{
+  const row = e.target.closest('.camprow');
+  if(row){
+    const plat = row.dataset.plat;
+    expandedTraffic = (expandedTraffic===plat) ? null : plat;
+    renderSumberTrafik();
+  }
+});
 document.getElementById('attribTable').addEventListener('click', e=>{
   const th = e.target.closest('th');
   if(th){
