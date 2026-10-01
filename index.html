@@ -529,7 +529,7 @@ select{flex:1;min-width:140px}
             <th data-k="roi">ROI<span class="sarrow" id="aarrow-roi"></span></th>
             <th data-k="cpc">CPC Meta<span class="qmark" onmouseenter="showHelp(event,'Spend ÷ Meta Clicks, rata-rata biaya per klik iklan.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="aarrow-cpc"></span></th>
             <th data-k="epc">EPC<span class="qmark" onmouseenter="showHelp(event,'Komisi ÷ Meta Clicks, rata-rata pendapatan per klik iklan.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="aarrow-epc"></span></th>
-            <th data-k="newUser">New User<span class="qmark" onmouseenter="showHelp(event,'Jumlah pesanan dari pembeli baru — dibaca dari kolom AO (Status Pembelian) di CSV Komisi Affiliate Shopee, nilainya Baru.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="aarrow-newUser"></span></th>
+            <th data-k="newUser">New User<span class="qmark" onmouseenter="showHelp(event,'Jumlah order dari pembeli baru yang BENERAN dapet bonus flat Rp50rb dari Shopee (Status Pembelian = Baru, DAN ada baris produk dengan Persentase Komisi Shopee 0% tapi Komisi Barang Shopee &gt; 0 — ciri khas bonus, bukan cuma ditandai Baru doang).')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span><span class="sarrow" id="aarrow-newUser"></span></th>
             <th>Rekomendasi<span class="qmark" onmouseenter="showHelp(event,'SCALE jika ROAS ≥ 1.5x, TAHAN jika ROAS 1x–1.5x, KILL jika ROAS di bawah 1x.')" onmousemove="positionHelp(event)" onmouseleave="hideHelp()">?</span></th>
             <th data-k="orders">Orders<span class="sarrow" id="aarrow-orders"></span></th>
             <th data-k="avgOrder">Avg/Order<span class="sarrow" id="aarrow-avgOrder"></span></th>
@@ -580,11 +580,24 @@ let activeOverview = {}, activeCampRows = [];
 let rawMeta = [], rawShopee = [], rawClicks = [], activeRawMeta = [], activeRawShopee = [], activeRawClicks = [];
 let akunOrderMap = {}; // akunLabel (nama workspace) -> 'Akun N', ditentukan dari urutan workspace, bukan urutan tabel
 function normTag(s){ return (s||'').trim().replace(/-+$/,'').trim(); }
-const NEW_USER_BONUS = 50000; // estimasi bonus komisi Shopee per pembeli baru (Rp), di luar komisi produk normal
+const NEW_USER_BONUS = 50000; // bonus komisi Shopee per pembeli baru (Rp), di luar komisi produk normal
+let bonusOrderIds = new Set(); // order ID yang beneran dapet bonus flat dari Shopee (bukan cuma ditandai "Baru")
+function buildBonusOrderIds(shopeeRows){
+  // tanda bonus new-user Shopee: baris produk dengan Persentase Komisi Shopee = 0% tapi Komisi Barang Shopee > 0
+  // (komisi flat di luar perhitungan persentase normal = bonus, bukan komisi produk biasa)
+  bonusOrderIds = new Set();
+  (shopeeRows||[]).forEach(r=>{
+    const pct = num(r['Persentase Komisi Shopee pada Produk']);
+    const flatAmt = num(r['Komisi Barang Shopee(Rp)']);
+    if(pct===0 && flatAmt>0 && r['ID Pemesanan']) bonusOrderIds.add(r['ID Pemesanan']);
+  });
+}
 function isValidNewUser(r){
   // hanya dihitung pembeli baru jika Status Pemebelian = "Baru" DAN Nilai Pembelian > 0 (order Rp0 bukan transaksi riil)
+  // DAN order itu beneran dapet bonus flat Rp50rb dari Shopee (bukan cuma ditandai "Baru" doang)
   if((r['_newUserCell']||'').toString().trim().toLowerCase()!=='baru') return false;
-  return (r._purchaseValue||0) > 0;
+  if((r._purchaseValue||0) <= 0) return false;
+  return bonusOrderIds.has(r['ID Pemesanan']);
 }
 let selPlatforms = null, selAkuns = null, sensorOn = false;
 const PILL_DOT_PALETTE = ['#5b8def','#3ecf8e','#e0c341','#a15bde','#e05b8e','#5bd0de','#de8f5b','#ff6b3d','#7ede5b','#5b64de'];
@@ -601,6 +614,7 @@ function toDateKey(s){
   return s.slice(0,10);
 }
 function buildLite(metaRows, shopeeRows, clickRows){
+  buildBonusOrderIds(shopeeRows);
   rawMeta = metaRows.map(r=>({date:toDateKey(r['Awal pelaporan']), campaign:(r['Nama kampanye']||'').trim(), akun:r['_akun']||'Akun 1', platform:(r['Platform']||'').trim()||'Lainnya', penempatan:(r['Penempatan']||'').trim(), spend:num(r['Jumlah yang dibelanjakan (IDR)']), clicks:num(r['Klik tautan']), impr:num(r['Impresi']), lp:num(r['Tayangan halaman tujuan'])}));
   rawShopee = shopeeRows.map(r=>({date:toDateKey(r['Waktu Pemesanan']), klikDate:toDateKey(r['Waktu Klik']), platform:(r['Platform']||'Lainnya').trim()||'Lainnya', komisi:num(r['Komisi Bersih Affiliate (Rp)']), tag:normTag(r['Tag_link1']), oid:r['ID Pemesanan'], produk:(r['Nama Barange']||'Tanpa nama').trim()||'Tanpa nama', kategori:(r['L1 Kategori Global']||'Lainnya').trim()||'Lainnya', status:(r['Status Pesanan']||'—').trim()||'—', newUser:isValidNewUser(r), akun:(r['_shopeeAkun']||'').trim()||'—'})).filter(x=>x.oid);
   rawClicks = (clickRows||[]).map(r=>({tag:normTag(r['Tag_link']), date:toDateKey(r['Waktu Klik']), platform:(r['Perujuk']||'').trim()})).filter(x=>x.tag);
@@ -1272,13 +1286,14 @@ function computeAndRender(metaRows, shopeeRows, clickRows){
     const komisi = num(r['Komisi Bersih Affiliate (Rp)']);
     totalKomisi += komisi;
     const cancelled = cancelledOrderIds.has(oid);
-    const tag = normTag(r['Tag_link1']);
+    // order tanpa Tag_link1 (misal dari share langsung produk, bukan dari link campaign) tetap
+    // dimasukkan ke bucket "(Tanpa Tag Link)" biar komisinya kehitung, bukan didiemin aja
+    const tag = normTag(r['Tag_link1']) || '(Tanpa Tag Link)';
     if(!cancelled){
       totalItems++;
       if(komisi===0) zeroCount++;
       orderSet.add(oid);
     }
-    if(!tag) return;
     if(!komisiByTag[tag]) komisiByTag[tag] = {komisi:0, orders:new Set(), sameDayOrders:new Set(), akuns:new Set(), newUserOrders:new Set(), newUserKomisi:0};
     komisiByTag[tag].komisi += komisi;
     if(r['_shopeeAkun']) komisiByTag[tag].akuns.add(r['_shopeeAkun']);
@@ -1755,8 +1770,7 @@ function buildTrafficSourceRows(){
   const komisiMap = {}; // bucket -> tagKeyLower -> {tag, komisi, orders:Set}
   sf.forEach(s=>{
     const plat = trafficBucket(s.platform || 'Lainnya');
-    const tag = normTag(s.tag);
-    if(!tag) return;
+    const tag = normTag(s.tag) || '(Tanpa Tag Link)';
     const key = tag.toLowerCase();
     komisiMap[plat] = komisiMap[plat] || {};
     if(!komisiMap[plat][key]) komisiMap[plat][key] = {tag, komisi:0, orders:new Set()};
