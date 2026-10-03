@@ -1322,12 +1322,18 @@ async function doExportHarian(akunFilter, label){
     cell.alignment = {horizontal:'center', vertical:'middle'};
   });
 
+  // kolom turunan (F..L) diisi RUMUS Excel beneran (ngerujuk kolom B..E di baris yang sama), bukan angka mati —
+  // jadi kalau Spend/Komisi/Klik diedit manual di Excel-nya, semua kolom lain otomatis keupdate sendiri
   rows.forEach(r=>{
-    const row = ws.addRow([
-      r.date, Math.round(r.spend), Math.round(r.komisi), r.metaKlik, r.shopeeKlik,
-      r.shopeeKlik>0 ? Math.round(r.cpcShopee) : null, r.metaKlik>0 ? r.klikRate/100 : null,
-      Math.round(r.spend), Math.round(r.komisi), Math.round(r.net), r.spend>0 ? r.roi/100 : null, r.spend>0 ? r.roas : null
-    ]);
+    const row = ws.addRow([r.date, Math.round(r.spend), Math.round(r.komisi), r.metaKlik, r.shopeeKlik]);
+    const rn = row.number;
+    row.getCell(6).value  = {formula:`IF(E${rn}>0,B${rn}/E${rn},"")`};           // CPC Shopee = Spend / Shopee Klik
+    row.getCell(7).value  = {formula:`IF(D${rn}>0,E${rn}/D${rn},"")`};           // Klik Rate = Shopee Klik / Facebook Klik
+    row.getCell(8).value  = {formula:`B${rn}`};                                  // Total Biaya Iklan = Spend
+    row.getCell(9).value  = {formula:`C${rn}`};                                  // Gross Profit = Komisi
+    row.getCell(10).value = {formula:`I${rn}-H${rn}`};                           // Net Profit = Gross Profit - Total Biaya
+    row.getCell(11).value = {formula:`IF(H${rn}>0,J${rn}/H${rn},"")`};           // ROI = Net Profit / Total Biaya
+    row.getCell(12).value = {formula:`IF(H${rn}>0,I${rn}/H${rn},"")`};           // ROAS = Gross Profit / Total Biaya
     row.getCell(2).numFmt = '"Rp"#,##0'; row.getCell(3).numFmt = '"Rp"#,##0';
     row.getCell(6).numFmt = '"Rp"#,##0'; row.getCell(7).numFmt = '0%';
     row.getCell(8).numFmt = '"Rp"#,##0'; row.getCell(9).numFmt = '"Rp"#,##0'; row.getCell(10).numFmt = '"Rp"#,##0';
@@ -1336,20 +1342,21 @@ async function doExportHarian(akunFilter, label){
     row.getCell(10).font = {color:{argb: r.net>=0 ? 'FF2E8B57' : 'FFCC3333'}, bold:true};
   });
 
-  // baris total
-  const n = rows.length;
-  const totalSpend = rows.reduce((s,r)=>s+r.spend,0);
-  const totalKomisi = rows.reduce((s,r)=>s+r.komisi,0);
-  const totalMetaKlik = rows.reduce((s,r)=>s+r.metaKlik,0);
-  const totalShopeeKlik = rows.reduce((s,r)=>s+r.shopeeKlik,0);
-  const totalNet = totalKomisi-totalSpend;
-  const totalRoi = totalSpend>0 ? totalNet/totalSpend : 0;
-  const totalRoas = totalSpend>0 ? totalKomisi/totalSpend : 0;
-  const totalCpc = totalShopeeKlik>0 ? totalSpend/totalShopeeKlik : 0;
-  const totalRate = totalMetaKlik>0 ? totalShopeeKlik/totalMetaKlik : 0;
-  const totalRow = ws.addRow(['TOTAL', Math.round(totalSpend), Math.round(totalKomisi), totalMetaKlik, totalShopeeKlik,
-    totalShopeeKlik>0?Math.round(totalCpc):null, totalMetaKlik>0?totalRate:null,
-    Math.round(totalSpend), Math.round(totalKomisi), Math.round(totalNet), totalSpend>0?totalRoi:null, totalSpend>0?totalRoas:null]);
+  // baris total — juga rumus (SUM dari rentang data di atasnya), bukan angka mati
+  const firstDataRow = 2, lastDataRow = rows.length+1;
+  const totalRow = ws.addRow(['TOTAL']);
+  const tn = totalRow.number;
+  totalRow.getCell(2).value = {formula:`SUM(B${firstDataRow}:B${lastDataRow})`};
+  totalRow.getCell(3).value = {formula:`SUM(C${firstDataRow}:C${lastDataRow})`};
+  totalRow.getCell(4).value = {formula:`SUM(D${firstDataRow}:D${lastDataRow})`};
+  totalRow.getCell(5).value = {formula:`SUM(E${firstDataRow}:E${lastDataRow})`};
+  totalRow.getCell(6).value = {formula:`IF(E${tn}>0,B${tn}/E${tn},"")`};
+  totalRow.getCell(7).value = {formula:`IF(D${tn}>0,E${tn}/D${tn},"")`};
+  totalRow.getCell(8).value = {formula:`B${tn}`};
+  totalRow.getCell(9).value = {formula:`C${tn}`};
+  totalRow.getCell(10).value = {formula:`I${tn}-H${tn}`};
+  totalRow.getCell(11).value = {formula:`IF(H${tn}>0,J${tn}/H${tn},"")`};
+  totalRow.getCell(12).value = {formula:`IF(H${tn}>0,I${tn}/H${tn},"")`};
   totalRow.eachCell(cell=>{ cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF2A2A2A'}}; cell.font={bold:true,color:{argb:'FFFFFFFF'}}; });
   totalRow.getCell(2).numFmt='"Rp"#,##0'; totalRow.getCell(3).numFmt='"Rp"#,##0';
   totalRow.getCell(6).numFmt='"Rp"#,##0'; totalRow.getCell(7).numFmt='0%';
