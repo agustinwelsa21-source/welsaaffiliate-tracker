@@ -6,6 +6,7 @@
 <title>Affiliate Tracker</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
 :root{
   --bg:#0c0c0c; --panel:#1b1b1b; --panel2:#222222; --line:#2c2c2c;
@@ -269,6 +270,11 @@ select{flex:1;min-width:140px}
 .barcol2:hover .b2{opacity:.78}
 .barcol2 .name{font-size:11px;color:var(--muted);margin-top:6px;white-space:nowrap}
 .charttip{position:fixed;background:#161616;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;color:#fff;pointer-events:none;display:none;z-index:999;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.harian-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1100;align-items:center;justify-content:center;padding:20px}
+.harian-modal-bg.show{display:flex}
+.harian-modal-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;width:100%;max-width:360px;box-shadow:0 10px 30px rgba(0,0,0,.55)}
+.harian-opt-btn{width:100%;text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;color:var(--text);font-size:13px;cursor:pointer;font-weight:600}
+.harian-opt-btn:hover{border-color:var(--accent)}
 .charttip .tt-h{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px}
 .charttip .tt-row{display:flex;align-items:center;gap:6px}
 .charttip .tt-row i{width:9px;height:9px;border-radius:2px;display:inline-block}
@@ -340,6 +346,7 @@ select{flex:1;min-width:140px}
     </nav>
     <div class="sidebar-spacer"></div>
     <button class="ghost" style="width:100%" onclick="exportExcel()">⬇ Export Excel</button>
+    <button class="ghost" style="width:100%" onclick="openExportHarianModal()">📅 Export Harian</button>
     <button class="ghost" style="width:100%" onclick="resetAll()">Ganti file</button>
   </aside>
   <main class="main">
@@ -571,6 +578,15 @@ select{flex:1;min-width:140px}
 </main>
 </div>
 
+<div id="harianModalBg" class="harian-modal-bg" onclick="if(event.target===this) closeExportHarianModal()">
+  <div class="harian-modal-card">
+    <h3 style="margin:0 0 6px">Export Harian</h3>
+    <div class="foot" style="margin:0 0 16px">Ada lebih dari 1 workspace — mau export yang mana?</div>
+    <div id="harianModalOptions" style="display:flex;flex-direction:column;gap:8px"></div>
+    <button class="ghost" style="width:100%;margin-top:14px" onclick="closeExportHarianModal()">Batal</button>
+  </div>
+</div>
+
 <script>
 let campRows = [];
 let overview = {};
@@ -617,7 +633,7 @@ function buildLite(metaRows, shopeeRows, clickRows){
   buildBonusOrderIds(shopeeRows);
   rawMeta = metaRows.map(r=>({date:toDateKey(r['Awal pelaporan']), campaign:(r['Nama kampanye']||'').trim(), akun:r['_akun']||'Akun 1', platform:(r['Platform']||'').trim()||'Lainnya', penempatan:(r['Penempatan']||'').trim(), spend:num(r['Jumlah yang dibelanjakan (IDR)']), clicks:num(r['Klik tautan']), impr:num(r['Impresi']), lp:num(r['Tayangan halaman tujuan'])}));
   rawShopee = shopeeRows.map(r=>({date:toDateKey(r['Waktu Pemesanan']), klikDate:toDateKey(r['Waktu Klik']), platform:(r['Platform']||'Lainnya').trim()||'Lainnya', komisi:num(r['Komisi Bersih Affiliate (Rp)']), tag:normTag(r['Tag_link1']), oid:r['ID Pemesanan'], produk:(r['Nama Barange']||'Tanpa nama').trim()||'Tanpa nama', kategori:(r['L1 Kategori Global']||'Lainnya').trim()||'Lainnya', status:(r['Status Pesanan']||'—').trim()||'—', newUser:isValidNewUser(r), akun:(r['_shopeeAkun']||'').trim()||'—'})).filter(x=>x.oid);
-  rawClicks = (clickRows||[]).map(r=>({tag:normTag(r['Tag_link']), date:toDateKey(r['Waktu Klik']), platform:(r['Perujuk']||'').trim()})).filter(x=>x.tag);
+  rawClicks = (clickRows||[]).map(r=>({tag:normTag(r['Tag_link']), date:toDateKey(r['Waktu Klik']), platform:(r['Perujuk']||'').trim(), akun:r['_akun']||'—'})).filter(x=>x.tag);
 }
 function getBounds(){
   const dates=[...rawMeta.map(m=>m.date), ...rawShopee.map(s=>s.date)].filter(Boolean).sort();
@@ -1187,6 +1203,7 @@ async function processFiles(){
       for(const cf of (w.clickFiles||[])){
         const ctext = await readFile(cf);
         const cparsed = Papa.parse(ctext, {header:true, skipEmptyLines:true, transformHeader:cleanHeader});
+        cparsed.data.forEach(r=>{ r._akun = akunLabel; });
         clickRows = clickRows.concat(cparsed.data);
       }
     }
@@ -1231,6 +1248,131 @@ function exportExcel(){
   XLSX.utils.book_append_sheet(wb, ws, 'Atribusi');
   const today = new Date().toISOString().slice(0,10);
   XLSX.writeFile(wb, 'affiliate-tracker-'+today+'.xlsx');
+}
+
+// ===== Export Harian (rekap Spend/Komisi/Profit per hari, format warna ala laporan manual) =====
+function getHarianWorkspaceList(){
+  const keys = new Set();
+  (rawMeta||[]).forEach(m=>{ if(m.akun) keys.add(m.akun); });
+  (rawShopee||[]).forEach(s=>{ if(s.akun && s.akun!=='—') keys.add(s.akun); });
+  return Array.from(keys).sort().map(k=>({key:k, label:(akunOrderMap[k]||k).replace(/^Akun/,'Workspace')}));
+}
+function openExportHarianModal(){
+  if((!rawMeta||!rawMeta.length) && (!rawShopee||!rawShopee.length)){ alert('Belum ada data untuk di-export.'); return; }
+  const list = getHarianWorkspaceList();
+  if(list.length<=1){ doExportHarian(list.length===1?list[0].key:null, list.length===1?list[0].label:'Semua'); return; }
+  const el = document.getElementById('harianModalOptions');
+  let html = `<button class="harian-opt-btn" onclick="closeExportHarianModal();doExportHarian(null,'Semua Workspace')">📊 Semua Workspace (Gabungan)</button>`;
+  html += list.map(w=>`<button class="harian-opt-btn" onclick="closeExportHarianModal();doExportHarian('${w.key.replace(/'/g,"\\'")}','${w.label.replace(/'/g,"\\'")}')">${w.label}</button>`).join('');
+  el.innerHTML = html;
+  document.getElementById('harianModalBg').classList.add('show');
+}
+function closeExportHarianModal(){
+  document.getElementById('harianModalBg').classList.remove('show');
+}
+function buildHarianRows(akunFilter){
+  const from = overview.from, to = overview.to;
+  const inRange = d => d && (!from || d>=from) && (!to || d<=to);
+  const mf = (rawMeta||[]).filter(m=>inRange(m.date) && (!akunFilter || m.akun===akunFilter));
+  const sf = (rawShopee||[]).filter(s=>inRange(s.date) && (!akunFilter || s.akun===akunFilter));
+  const ppnOn = overview.ppnOn, ppnMult = 1 + (ppnOn ? (overview.ppnPct||0)/100 : 0);
+  // Shopee Click Report di-upload per workspace (sama kayak Meta CSV & Shopee CSV), jadi setiap baris
+  // klik sudah langsung tertandai workspace-nya sendiri sejak upload — tinggal filter sama kayak mf/sf
+  const cf = (rawClicks||[]).filter(c=>inRange(c.date) && (!akunFilter || c.akun===akunFilter));
+
+  const dayMap = {};
+  mf.forEach(m=>{
+    const d = dayMap[m.date] = dayMap[m.date] || {spend:0, komisi:0, metaKlik:0, shopeeKlik:0};
+    d.spend += ppnOn ? m.spend*ppnMult : m.spend;
+    d.metaKlik += m.clicks;
+  });
+  sf.forEach(s=>{
+    const d = dayMap[s.date] = dayMap[s.date] || {spend:0, komisi:0, metaKlik:0, shopeeKlik:0};
+    d.komisi += s.komisi;
+  });
+  cf.forEach(c=>{
+    const d = dayMap[c.date] = dayMap[c.date] || {spend:0, komisi:0, metaKlik:0, shopeeKlik:0};
+    d.shopeeKlik += 1;
+  });
+
+  return Object.keys(dayMap).filter(Boolean).sort().map(dt=>{
+    const d = dayMap[dt];
+    const net = d.komisi - d.spend;
+    const roas = d.spend>0 ? d.komisi/d.spend : 0;
+    const roi = d.spend>0 ? (net/d.spend*100) : 0;
+    const cpcShopee = d.shopeeKlik>0 ? d.spend/d.shopeeKlik : 0;
+    const klikRate = d.metaKlik>0 ? (d.shopeeKlik/d.metaKlik*100) : 0;
+    return {date:dt, spend:d.spend, komisi:d.komisi, metaKlik:d.metaKlik, shopeeKlik:d.shopeeKlik, cpcShopee, klikRate, net, roi, roas};
+  });
+}
+async function doExportHarian(akunFilter, label){
+  if(typeof ExcelJS==='undefined'){ alert('Library Excel belum siap kemuat, coba lagi sebentar lagi.'); return; }
+  const rows = buildHarianRows(akunFilter);
+  if(!rows.length){ alert('Belum ada data harian untuk rentang tanggal / workspace ini.'); return; }
+  const hasShopeeKlik = rows.some(r=>r.shopeeKlik>0);
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Harian');
+  const headers = ['Tanggal','Spend Iklan','Komisi','Facebook Klik','Shopee Klik','CPC Shopee','Klik Rate','Total Biaya Iklan','Gross Profit','Net Profit','ROI','ROAS'];
+  ws.addRow(headers);
+  const headerColors = ['FF2E5C9E','FF4A77C4','FF35589E','FF2E8B57','FF2E8B57','FF4F8A3D','FF1E6B2E','FFE07B39','FFE0A030','FF8B6FB8','FF8B6FB8','FF8B6FB8'];
+  ws.getRow(1).eachCell((cell,i)=>{
+    cell.font = {bold:true, color:{argb:'FFFFFFFF'}};
+    cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:headerColors[i-1]||'FF444444'}};
+    cell.alignment = {horizontal:'center', vertical:'middle'};
+  });
+
+  rows.forEach(r=>{
+    const row = ws.addRow([
+      r.date, Math.round(r.spend), Math.round(r.komisi), r.metaKlik, r.shopeeKlik,
+      r.shopeeKlik>0 ? Math.round(r.cpcShopee) : null, r.metaKlik>0 ? r.klikRate/100 : null,
+      Math.round(r.spend), Math.round(r.komisi), Math.round(r.net), r.spend>0 ? r.roi/100 : null, r.spend>0 ? r.roas : null
+    ]);
+    row.getCell(2).numFmt = '"Rp"#,##0'; row.getCell(3).numFmt = '"Rp"#,##0';
+    row.getCell(6).numFmt = '"Rp"#,##0'; row.getCell(7).numFmt = '0%';
+    row.getCell(8).numFmt = '"Rp"#,##0'; row.getCell(9).numFmt = '"Rp"#,##0'; row.getCell(10).numFmt = '"Rp"#,##0';
+    row.getCell(11).numFmt = '0.00%'; row.getCell(12).numFmt = '0.0"x"';
+    row.getCell(9).font = {color:{argb:'FFE0A030'}, bold:true};
+    row.getCell(10).font = {color:{argb: r.net>=0 ? 'FF2E8B57' : 'FFCC3333'}, bold:true};
+  });
+
+  // baris total
+  const n = rows.length;
+  const totalSpend = rows.reduce((s,r)=>s+r.spend,0);
+  const totalKomisi = rows.reduce((s,r)=>s+r.komisi,0);
+  const totalMetaKlik = rows.reduce((s,r)=>s+r.metaKlik,0);
+  const totalShopeeKlik = rows.reduce((s,r)=>s+r.shopeeKlik,0);
+  const totalNet = totalKomisi-totalSpend;
+  const totalRoi = totalSpend>0 ? totalNet/totalSpend : 0;
+  const totalRoas = totalSpend>0 ? totalKomisi/totalSpend : 0;
+  const totalCpc = totalShopeeKlik>0 ? totalSpend/totalShopeeKlik : 0;
+  const totalRate = totalMetaKlik>0 ? totalShopeeKlik/totalMetaKlik : 0;
+  const totalRow = ws.addRow(['TOTAL', Math.round(totalSpend), Math.round(totalKomisi), totalMetaKlik, totalShopeeKlik,
+    totalShopeeKlik>0?Math.round(totalCpc):null, totalMetaKlik>0?totalRate:null,
+    Math.round(totalSpend), Math.round(totalKomisi), Math.round(totalNet), totalSpend>0?totalRoi:null, totalSpend>0?totalRoas:null]);
+  totalRow.eachCell(cell=>{ cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF2A2A2A'}}; cell.font={bold:true,color:{argb:'FFFFFFFF'}}; });
+  totalRow.getCell(2).numFmt='"Rp"#,##0'; totalRow.getCell(3).numFmt='"Rp"#,##0';
+  totalRow.getCell(6).numFmt='"Rp"#,##0'; totalRow.getCell(7).numFmt='0%';
+  totalRow.getCell(8).numFmt='"Rp"#,##0'; totalRow.getCell(9).numFmt='"Rp"#,##0'; totalRow.getCell(10).numFmt='"Rp"#,##0';
+  totalRow.getCell(11).numFmt='0.00%'; totalRow.getCell(12).numFmt='0.0"x"';
+
+  ws.columns.forEach((col,i)=>{ col.width = i===0 ? 13 : 15; });
+  ws.views = [{state:'frozen', ySplit:1}];
+
+  if(!hasShopeeKlik){
+    const noteRow = ws.addRow(['Catatan: kolom Shopee Klik/CPC Shopee/Klik Rate kosong karena file Klik Report Shopee tidak disertakan saat upload.']);
+    ws.mergeCells(noteRow.number,1,noteRow.number,12);
+    noteRow.getCell(1).font = {italic:true, color:{argb:'FF8b9098'}};
+  }
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {type:'application/octet-stream'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const today = new Date().toISOString().slice(0,10);
+  a.href = url; a.download = 'harian-'+(label||'semua').toLowerCase().replace(/\s+/g,'-')+'-'+today+'.xlsx';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 function resetAll(){
   document.getElementById('dash').style.display='none';
