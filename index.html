@@ -1600,6 +1600,14 @@ function renderOverview(){
   document.getElementById('pRoi').textContent = o.roi.toFixed(1)+'%';
   document.getElementById('pOrders').textContent = fmtInt(o.uniqueOrders);
 
+  // Klik Shopee: dari file Shopee Click Report (opsional) — kartu cuma muncul kalau file klik sudah di-upload
+  let shopeeKlikCard = null;
+  if(rawClicks && rawClicks.length){
+    const inR = d => d && (!o.from || d>=o.from) && (!o.to || d<=o.to);
+    const kn = rawClicks.filter(c=>inR(c.date) && (!selAkuns || selAkuns.has(c.akun))).length;
+    const rate = o.totalClicks>0 ? kn/o.totalClicks*100 : 0;
+    shopeeKlikCard = {lbl:'Klik Shopee', val:fmtInt(kn), foot:'Klik rate: '+rate.toFixed(1)+'% · CPC: '+fmtRpFull(kn>0?o.totalSpend/kn:0), footColor:rateColor(rate), help:'Jumlah klik ke link affiliate Shopee, dari file Shopee Click Report. Klik rate = Klik Shopee ÷ Meta Clicks (makin tinggi makin bagus), CPC = Spend ÷ Klik Shopee.'};
+  }
   const kpis = [
     {lbl:o.ppnOn?'Spend + PPN':'Spend', val:fmtRp(o.totalSpend), foot:o.ppnOn?('Biaya iklan Meta + PPN '+o.ppnPct+'%'):'Biaya iklan Meta', help:'Total biaya iklan Meta yang dikeluarkan pada periode ini'+(o.ppnOn?' (sudah termasuk PPN '+o.ppnPct+'%).':'.')},
     {lbl:'Total Komisi', val:fmtRp(o.totalKomisi), cls:'pos', foot:'Komisi affiliate Shopee', help:'Total komisi affiliate yang didapat dari Shopee pada periode ini, sebelum dikurangi biaya iklan.'},
@@ -1607,7 +1615,7 @@ function renderOverview(){
     {lbl:'ROAS', val:o.roas.toFixed(2)+'x', color:roasColor(o.roas), help:'Return on Ad Spend: komisi dibagi spend. ROAS 1x = balik modal, di atas 2x tergolong bagus dan layak scale.'},
     {lbl:'ROI', val:o.roi.toFixed(1)+'%', color:roiColor(o.roi), foot:'(Komisi−Spend)/Spend', help:'Return on Investment: persentase untung/rugi dari modal spend. ROI 0% = balik modal, negatif berarti rugi.'},
     {lbl:'Meta Clicks', val:fmtInt(o.totalClicks), foot:'CPC: '+fmtRpFull(o.totalClicks>0?o.totalSpend/o.totalClicks:0), help:'Jumlah klik pada iklan Meta. CPC (Cost per Click) adalah rata-rata biaya per klik = Spend ÷ Klik.'},
-    {lbl:'LP Views', val:fmtInt(o.totalLp), foot:'LP rate: '+o.lpRate.toFixed(1)+'%', footColor:lpColor(o.lpRate), help:'Jumlah kunjungan ke landing page dari klik iklan. LP rate = LP Views ÷ Klik, makin tinggi makin bagus.'},
+    ...(shopeeKlikCard ? [shopeeKlikCard] : []),
     {lbl:'Unique Orders', val:fmtInt(o.uniqueOrders), foot:'Komisi/order: '+fmtRpFull(o.uniqueOrders>0?o.totalKomisi/o.uniqueOrders:0), help:'Jumlah pesanan unik (berdasarkan ID Pemesanan) yang tercatat dari link affiliate pada periode ini.'},
     {lbl:'Zero Komisi', val:o.zeroPct.toFixed(1)+'%', color:zeroColor(o.zeroPct), foot:o.zeroCount+' dari '+o.totalItems+' item', help:'Persentase item dengan komisi Rp0 (biasanya dibatalkan/ditolak Shopee). Makin tinggi makin buruk.'},
   ];
