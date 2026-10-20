@@ -1085,7 +1085,7 @@ function renderWsCard(w, idx){
         </div>
         <label class="filebtn">Upload CSV<input type="file" accept=".csv" multiple style="display:none" onchange="setClickFiles('${w.id}', this.files)"></label>
       </div>
-      ${w.clickFiles.length?`<div class="filestatus">✓ ${w.clickFiles.length} file: ${w.clickFiles.map(f=>f.name).join(', ')}</div>`:''}
+      ${w.clickFiles.length?`<div class="filestatus">✓ ${w.clickFiles.length} file: ${w.clickFiles.map(f=>f.name).join(', ')} <button class="rmbtn" title="Kosongkan" onclick="clearClickFiles('${w.id}')">✕</button></div>`:''}
     </div>
   </div>`;
 }
@@ -1100,6 +1100,7 @@ function setMetaFiles(id, fileList){
   if(!w.name.trim()) w.name = baseName(files[0].name);
   renderUiWorkspaces();
 }
+function clearClickFiles(id){ const w=findWs(id); if(w){ w.clickFiles=[]; renderUiWorkspaces(); } }
 function clearMetaFiles(id){ const w=findWs(id); if(w){ w.metaFiles=[]; renderUiWorkspaces(); } }
 function setShopeeAccFile(id, ai, fileList){
   const w=findWs(id); if(!w || !w.shopeeAccounts[ai]) return;
@@ -1135,7 +1136,7 @@ function readFile(file){
   return new Promise((resolve,reject)=>{
     const r = new FileReader();
     r.onload = ()=>resolve(r.result);
-    r.onerror = reject;
+    r.onerror = ()=>reject(new Error('file "'+(file&&file.name||'?')+'" tidak bisa dibaca lagi (kemungkinan sudah dihapus/diganti di komputer). Klik ✕ lalu upload ulang file itu'));
     r.readAsText(file, 'utf-8');
   });
 }
@@ -1160,7 +1161,7 @@ function roiColor(v){ return v<0?'var(--bad2)': v<100?'var(--warn)':'var(--good)
 function rateColor(v){ return v>=50?'var(--good)': v>=20?'var(--warn)':'var(--bad2)'; }
 function sourceTip(r){
   if(!r.orders) return 'Belum ada data pesanan untuk hitung sumber pesanan.';
-  return `Sumber Pesanan (dari ${fmtInt(r.orders)} pesanan): ${(r.sameDayPct||0).toFixed(1)}% klik hari yang sama, ${(r.cookiePct||0).toFixed(1)}% cookies hari sebelumnya.`;
+  return `Sumber Pesanan (dari ${fmtInt(r.orders)} pesanan): ${(r.sameDayPct||0).toFixed(1)}% klik hari yang sama (${fmtRpFull(r.sameDayKomisi||0)}), ${(r.cookiePct||0).toFixed(1)}% cookies hari sebelumnya (${fmtRpFull(r.cookieKomisi||0)}).`;
 }
 function lpColor(v){ return v>=40?'var(--good)': v>=20?'var(--warn)':'var(--bad2)'; }
 function zeroColor(v){ return v<20?'var(--good)': v<30?'var(--warn)':'var(--bad2)'; }
@@ -1384,7 +1385,9 @@ async function doExportHarian(akunFilter, label){
 function resetAll(){
   document.getElementById('dash').style.display='none';
   document.getElementById('upload').style.display='block';
-  // balik ke layar upload tanpa menghapus workspace/file yang sudah dipilih sebelumnya
+  // "Ganti file": kosongkan semua file lama (nama workspace/akun tetap) supaya upload baru bersih
+  // dan tidak ada referensi file lama yang sudah berubah di komputer
+  uiWorkspaces.forEach(w=>{ w.metaFiles=[]; w.clickFiles=[]; (w.shopeeAccounts||[]).forEach(a=>{ a.file=null; }); });
   renderUiWorkspaces();
   renderHistory();
 }
@@ -1443,15 +1446,16 @@ function computeAndRender(metaRows, shopeeRows, clickRows){
       if(komisi===0) zeroCount++;
       orderSet.add(oid);
     }
-    if(!komisiByTag[tag]) komisiByTag[tag] = {komisi:0, orders:new Set(), sameDayOrders:new Set(), akuns:new Set(), newUserOrders:new Set(), newUserKomisi:0};
+    if(!komisiByTag[tag]) komisiByTag[tag] = {komisi:0, orders:new Set(), sameDayOrders:new Set(), akuns:new Set(), newUserOrders:new Set(), newUserKomisi:0, sameDayKomisi:0, activeKomisi:0};
     komisiByTag[tag].komisi += komisi;
     if(r['_shopeeAkun']) komisiByTag[tag].akuns.add(r['_shopeeAkun']);
     if(cancelled) return;
     komisiByTag[tag].orders.add(oid);
+    komisiByTag[tag].activeKomisi += komisi;
     if(isValidNewUser(r)){ komisiByTag[tag].newUserOrders.add(oid); komisiByTag[tag].newUserKomisi += komisi; }
     const orderDate = toDateKey(r['Waktu Pemesanan']);
     const klikDate = toDateKey(r['Waktu Klik']);
-    if(klikDate && orderDate && klikDate===orderDate) komisiByTag[tag].sameDayOrders.add(oid);
+    if(klikDate && orderDate && klikDate===orderDate){ komisiByTag[tag].sameDayOrders.add(oid); komisiByTag[tag].sameDayKomisi += komisi; }
   });
   const uniqueOrders = orderSet.size;
 
@@ -1499,13 +1503,15 @@ function computeAndRender(metaRows, shopeeRows, clickRows){
     const sameDayCount = match ? match.sameDayOrders.size : 0;
     const sameDayPct = orders>0 ? (sameDayCount/orders*100) : 0;
     const cookiePct = orders>0 ? (100-sameDayPct) : 0;
+    const sameDayKomisi = match ? match.sameDayKomisi : 0;
+    const cookieKomisi = match ? Math.max(0, match.activeKomisi - match.sameDayKomisi) : 0;
     const newUser = match ? match.newUserOrders.size : 0;
     const newUserPct = orders>0 ? (newUser/orders*100) : 0;
     const newUserBonusEst = newUser*NEW_USER_BONUS;
     const newUserKomisiPct = komisi>0 ? (newUserBonusEst/komisi*100) : 0;
     let status = roas>=1.5 ? 'SCALE' : (roas<1 ? 'KILL' : 'TAHAN');
     if(status==='SCALE' && newUserKomisiPct>=80) status='TAHAN';
-    return {campaign:c.campaign, tagLink:matchTag||null, akun:c.akun, match:matchTag?c.campaign:'—', spend:c.spend, clicks:c.clicks, impr:c.impr, ctr, cpc, cpm, epc, komisi, net, roas, roi, orders, klikShopee, realCpc, realRate, sameDayPct, cookiePct, newUser, newUserPct, newUserKomisiPct, noMeta:false,
+    return {campaign:c.campaign, tagLink:matchTag||null, akun:c.akun, match:matchTag?c.campaign:'—', spend:c.spend, clicks:c.clicks, impr:c.impr, ctr, cpc, cpm, epc, komisi, net, roas, roi, orders, klikShopee, realCpc, realRate, sameDayPct, cookiePct, sameDayKomisi, cookieKomisi, newUser, newUserPct, newUserKomisiPct, noMeta:false,
       status};
   });
   // tag_link yang ada komisinya tapi campaign Meta-nya sudah off / tidak ada di CSV Meta periode ini — tetap dimasukkan
@@ -1519,6 +1525,8 @@ function computeAndRender(metaRows, shopeeRows, clickRows){
     const sameDayCount = match.sameDayOrders.size;
     const sameDayPct = orders>0 ? (sameDayCount/orders*100) : 0;
     const cookiePct = orders>0 ? (100-sameDayPct) : 0;
+    const sameDayKomisi = match.sameDayKomisi;
+    const cookieKomisi = Math.max(0, match.activeKomisi - match.sameDayKomisi);
     const akunTxt = match.akuns && match.akuns.size ? Array.from(match.akuns).join(', ') : '—';
     const newUser = match.newUserOrders.size;
     const newUserPct = orders>0 ? (newUser/orders*100) : 0;
@@ -1526,7 +1534,7 @@ function computeAndRender(metaRows, shopeeRows, clickRows){
     const newUserKomisiPct = komisi>0 ? (newUserBonusEst/komisi*100) : 0;
     let status = komisi>0 ? 'SCALE' : 'KILL';
     if(status==='SCALE' && newUserKomisiPct>=80) status='TAHAN';
-    campRows.push({campaign:tag, tagLink:tag, akun:akunTxt, match:'—', spend:0, clicks:0, impr:0, ctr:0, cpc:0, cpm:0, epc:0, komisi, net:komisi, roas:null, roi:null, orders, klikShopee, realCpc:0, realRate:0, sameDayPct, cookiePct, newUser, newUserPct, newUserKomisiPct, noMeta:true,
+    campRows.push({campaign:tag, tagLink:tag, akun:akunTxt, match:'—', spend:0, clicks:0, impr:0, ctr:0, cpc:0, cpm:0, epc:0, komisi, net:komisi, roas:null, roi:null, orders, klikShopee, realCpc:0, realRate:0, sameDayPct, cookiePct, sameDayKomisi, cookieKomisi, newUser, newUserPct, newUserKomisiPct, noMeta:true,
       status});
   });
   campRows.sort((a,b)=>b.spend-a.spend);
@@ -1812,7 +1820,7 @@ function buildRekomendasiHtml(r){
   const sumberHtml = r.orders>0 ? `
     <div class="reksumber" style="background:rgba(242,184,75,.1);border:1px solid rgba(242,184,75,.4)">
       <div class="reklabel" style="color:var(--warn)">SUMBER KOMISI</div>
-      <div class="rektext">${(r.sameDayPct||0).toFixed(1)}% klik hari yang sama, ${(r.cookiePct||0).toFixed(1)}% cookies sebelumnya.</div>
+      <div class="rektext">${(r.sameDayPct||0).toFixed(1)}% klik hari yang sama (${fmtRpFull(r.sameDayKomisi||0)}), ${(r.cookiePct||0).toFixed(1)}% cookies sebelumnya (${fmtRpFull(r.cookieKomisi||0)}).</div>
     </div>` : '';
   return `<div class="rekwrap">
     <div class="rekhead" style="color:${th.color}">${th.label}</div>
@@ -1860,7 +1868,7 @@ function renderAttribution(){
   const tbody = document.getElementById('attribBody');
   if(!tbody) return;
   let rows = (campRows||[]).filter(r=>!selAkuns || selAkuns.has(r.akun)).map(r=>({...r,
-    akun:r.akun||'—', match:r.match||'—', epc:r.epc||0, klikShopee:r.klikShopee||0, realCpc:r.realCpc||0, realRate:r.realRate||0, sameDayPct:r.sameDayPct||0, cookiePct:r.cookiePct||0,
+    akun:r.akun||'—', match:r.match||'—', epc:r.epc||0, klikShopee:r.klikShopee||0, realCpc:r.realCpc||0, realRate:r.realRate||0, sameDayPct:r.sameDayPct||0, cookiePct:r.cookiePct||0, sameDayKomisi:r.sameDayKomisi||0, cookieKomisi:r.cookieKomisi||0,
     avgOrder: r.orders>0 ? r.komisi/r.orders : 0}));
   const total = rows.length;
   if(attrMinSpend!=null) rows = rows.filter(r=>r.spend>=attrMinSpend);
