@@ -799,6 +799,79 @@ function renderDailyTable(days){
     <td>${fmtInt(d.clicks)}</td><td>${fmtInt(d.lp)}</td><td style="color:${lpColor(d.lpRate)};font-weight:500">${d.lpRate.toFixed(1)}%</td>
     <td>${fmtInt(d.orders)}</td><td style="color:${zeroColor(d.zeroPct)};font-weight:500">${d.zeroPct.toFixed(1)}%</td></tr>`).join('');
 }
+// Bangun ulang campRows (dipakai tab Campaigns, Atribusi, dll) dari data mentah, hanya untuk rentang tanggal terpilih
+function rebuildCampRowsForRange(from, to){
+  const inR = d => d && (!from || d>=from) && (!to || d<=to);
+  const metaByCamp = {};
+  (rawMeta||[]).forEach(m=>{
+    if(!inR(m.date) || !m.campaign) return;
+    const c = metaByCamp[m.campaign] = metaByCamp[m.campaign] || {campaign:m.campaign, akun:m.akun||'Akun 1', spend:0, clicks:0, impr:0, lp:0};
+    c.spend += m.spend||0; c.clicks += m.clicks||0; c.impr += m.impr||0; c.lp += m.lp||0;
+  });
+  const shopeeIn = (rawShopee||[]).filter(r=>inR(r.date));
+  const cancelled = new Set();
+  shopeeIn.forEach(r=>{ if(/dibatal/i.test(r.status||'')) cancelled.add(r.oid); });
+  const komisiByTag = {};
+  shopeeIn.forEach(r=>{
+    const tag = normTag(r.tag) || '(Tanpa Tag Link)';
+    const t = komisiByTag[tag] = komisiByTag[tag] || {komisi:0, orders:new Set(), sameDayOrders:new Set(), akuns:new Set(), newUserOrders:new Set(), sameDayKomisi:0, activeKomisi:0};
+    t.komisi += r.komisi||0;
+    if(r.akun && r.akun!=='—') t.akuns.add(r.akun);
+    if(cancelled.has(r.oid)) return;
+    t.orders.add(r.oid);
+    t.activeKomisi += r.komisi||0;
+    if(r.newUser) t.newUserOrders.add(r.oid);
+    if(r.klikDate && r.date && r.klikDate===r.date){ t.sameDayOrders.add(r.oid); t.sameDayKomisi += r.komisi||0; }
+  });
+  const clicksByTag = {};
+  (rawClicks||[]).forEach(c=>{ if(inR(c.date) && c.tag) clicksByTag[c.tag] = (clicksByTag[c.tag]||0)+1; });
+  function findBest(campKey){
+    for(const tag in komisiByTag){ if(tag.toLowerCase()===campKey) return tag; }
+    let best=null;
+    for(const tag in komisiByTag){ const t=tag.toLowerCase(); if(t.length>=3 && campKey.includes(t)){ if(!best || t.length>best.length) best=t; } }
+    return best ? Object.keys(komisiByTag).find(x=>x.toLowerCase()===best) : null;
+  }
+  function clickFor(keyLower){ for(const t in clicksByTag){ if(t.toLowerCase()===keyLower) return clicksByTag[t]; } return 0; }
+  const out = [];
+  const matched = new Set();
+  Object.values(metaByCamp).forEach(c=>{
+    const key = normTag(c.campaign).toLowerCase();
+    const matchTag = findBest(key);
+    const match = matchTag ? komisiByTag[matchTag] : null;
+    if(matchTag) matched.add(matchTag.toLowerCase());
+    const komisi = match ? match.komisi : 0, orders = match ? match.orders.size : 0;
+    const net = komisi - c.spend;
+    const roas = c.spend>0 ? komisi/c.spend : 0, roi = c.spend>0 ? net/c.spend*100 : 0;
+    const ctr = c.impr>0 ? c.clicks/c.impr*100 : 0, cpc = c.clicks>0 ? c.spend/c.clicks : 0, cpm = c.impr>0 ? c.spend/c.impr*1000 : 0;
+    const epc = c.clicks>0 ? komisi/c.clicks : 0;
+    const klikShopee = clickFor(matchTag ? matchTag.toLowerCase() : key);
+    const realCpc = klikShopee>0 ? c.spend/klikShopee : 0, realRate = c.clicks>0 ? klikShopee/c.clicks*100 : 0;
+    const sameDayPct = orders>0 && match ? match.sameDayOrders.size/orders*100 : 0;
+    const cookiePct = orders>0 ? 100-sameDayPct : 0;
+    const sameDayKomisi = match ? match.sameDayKomisi : 0;
+    const cookieKomisi = match ? Math.max(0, match.activeKomisi-match.sameDayKomisi) : 0;
+    const newUser = match ? match.newUserOrders.size : 0;
+    const newUserPct = orders>0 ? newUser/orders*100 : 0;
+    const newUserKomisiPct = komisi>0 ? newUser*NEW_USER_BONUS/komisi*100 : 0;
+    let status = roas>=1.5 ? 'SCALE' : (roas<1 ? 'KILL' : 'TAHAN');
+    if(status==='SCALE' && newUserKomisiPct>=80) status='TAHAN';
+    out.push({campaign:c.campaign, tagLink:matchTag||null, akun:c.akun, match:matchTag?c.campaign:'—', spend:c.spend, clicks:c.clicks, impr:c.impr, ctr, cpc, cpm, epc, komisi, net, roas, roi, orders, klikShopee, realCpc, realRate, sameDayPct, cookiePct, sameDayKomisi, cookieKomisi, newUser, newUserPct, newUserKomisiPct, noMeta:false, status});
+  });
+  Object.keys(komisiByTag).forEach(tag=>{
+    if(matched.has(tag.toLowerCase())) return;
+    const match = komisiByTag[tag], komisi = match.komisi, orders = match.orders.size;
+    const sameDayPct = orders>0 ? match.sameDayOrders.size/orders*100 : 0;
+    const cookiePct = orders>0 ? 100-sameDayPct : 0;
+    const newUser = match.newUserOrders.size;
+    const newUserPct = orders>0 ? newUser/orders*100 : 0;
+    const newUserKomisiPct = komisi>0 ? newUser*NEW_USER_BONUS/komisi*100 : 0;
+    let status = komisi>0 ? 'SCALE' : 'KILL';
+    if(status==='SCALE' && newUserKomisiPct>=80) status='TAHAN';
+    out.push({campaign:tag, tagLink:tag, akun:match.akuns.size?Array.from(match.akuns).join(', '):'—', match:'—', spend:0, clicks:0, impr:0, ctr:0, cpc:0, cpm:0, epc:0, komisi, net:komisi, roas:null, roi:null, orders, klikShopee:clickFor(tag.toLowerCase()), realCpc:0, realRate:0, sameDayPct, cookiePct, sameDayKomisi:match.sameDayKomisi, cookieKomisi:Math.max(0,match.activeKomisi-match.sameDayKomisi), newUser, newUserPct, newUserKomisiPct, noMeta:true, status});
+  });
+  out.sort((a,b)=>b.spend-a.spend);
+  return out;
+}
 function refreshOverview(){
   if(!rawMeta.length && !rawShopee.length) return;
   const b = getBounds();
@@ -859,6 +932,9 @@ function refreshOverview(){
   renderAkunPills(rawShopee.filter(s=>inRange(s.date)));
   document.getElementById('orderscount').textContent = uniqueOrders+' / '+sfAll.length+' orders ('+(sfAll.length>0?(uniqueOrders/sfAll.length*100).toFixed(0):0)+'%)';
   renderProduk(sf, sfAll);
+  // tab Campaigns / Atribusi / Sumber Trafik ikut filter tanggal
+  campRows = rebuildCampRowsForRange(from, to);
+  renderAkunBreakdown(); renderCampaigns(); renderFunnel(); renderAttribution(); renderSumberTrafik();
 }
 
 function getLatestSnapshot(wsId){
@@ -1911,10 +1987,11 @@ function renderAttribution(){
 }
 let expandedTraffic = null;
 function buildTrafficSourceRows(){
-  // catatan: sama seperti tab Campaigns/Atribusi, breakdown ini tidak difilter oleh date range di Overview,
-  // hanya oleh filter Workspace (selAkuns) — biar konsisten dengan campRows
-  const mf = (rawMeta||[]).filter(m=>!selAkuns || selAkuns.has(m.akun));
-  const sf = (rawShopee||[]).filter(s=>(!selAkuns || selAkuns.has(s.akun)) && !/dibatal/i.test(s.status||''));
+  // breakdown ini mengikuti filter tanggal di atas + filter Workspace (selAkuns)
+  const _f = overview.from, _t = overview.to;
+  const _inR = d => d && (!_f || d>=_f) && (!_t || d<=_t);
+  const mf = (rawMeta||[]).filter(m=>_inR(m.date) && (!selAkuns || selAkuns.has(m.akun)));
+  const sf = (rawShopee||[]).filter(s=>_inR(s.date) && (!selAkuns || selAkuns.has(s.akun)) && !/dibatal/i.test(s.status||''));
   // Facebook dipisah sendiri (paling reliable dideteksi kedua sisi), sisanya (Threads, Instagram,
   // Websites/Others/Google Search/dll yang gagal kedeteksi) digabung jadi 1 sumber "Threads & IG" —
   // karena di setup iklannya, Threads selalu jalan bareng Instagram dalam 1 ad set.
