@@ -1767,7 +1767,8 @@ function buildTagProductBreakdown(tag){
     platformCounts[s.platform] = (platformCounts[s.platform]||0)+1;
     statusCounts[s.status] = (statusCounts[s.status]||0)+1;
     const k = s.produk || 'Tanpa nama';
-    if(!byProduk[k]) byProduk[k] = {produk:k, kategori:s.kategori||'Lainnya', komisi:0, items:0, statusCounts:{}};
+    if(!byProduk[k]) byProduk[k] = {produk:k, kategori:s.kategori||'Lainnya', komisi:0, items:0, statusCounts:{}, platCounts:{}};
+    byProduk[k].platCounts[s.platform||'—'] = (byProduk[k].platCounts[s.platform||'—']||0)+1;
     byProduk[k].komisi += s.komisi;
     byProduk[k].items += 1;
     byProduk[k].statusCounts[s.status] = (byProduk[k].statusCounts[s.status]||0)+1;
@@ -1843,17 +1844,18 @@ function renderAttribDetail(r){
     <tr>
       <td>${p.produk}</td>
       <td style="color:var(--muted)">${p.kategori}</td>
+      <td style="color:var(--muted)">${Object.keys(p.platCounts).sort((a,b)=>p.platCounts[b]-p.platCounts[a]).map(x=>Object.keys(p.platCounts).length>1?`${x} (${p.platCounts[x]})`:x).join(' · ')}</td>
       <td style="color:${p.komisi>0?'var(--bad)':'var(--muted)'};font-weight:500">${fmtRpFull(p.komisi)}</td>
       <td style="font-weight:500">${fmtInt(p.items)}</td>
       <td style="font-weight:500">${fmtRpFull(p.items>0?p.komisi/p.items:0)}</td>
       <td style="color:${statusColor(p.topStatus)};font-weight:500">${p.topStatus}</td>
     </tr>`).join('')
-    : `<tr><td colspan="6" style="color:var(--muted)">Tidak ada data produk untuk tag ini pada periode yang difilter.</td></tr>`;
+    : `<tr><td colspan="7" style="color:var(--muted)">Tidak ada data produk untuk tag ini pada periode yang difilter.</td></tr>`;
   return `<tr class="attrib-detail"><td colspan="18"><div class="bdwrap">
     <div class="bdmeta">Platform: <b>${platTxt}</b> &nbsp;·&nbsp; Status: ${statTxt}</div>
     <div class="bdtitle">${products.length} PRODUK — semua pesanan untuk tag ini</div>
     <div class="tablewrap" style="max-height:420px;overflow-y:auto">
-    <table><thead><tr><th>Produk</th><th>Kategori</th><th>Komisi (Rp)</th><th>Items</th><th>Avg/Item</th><th>Status Terbanyak</th></tr></thead>
+    <table><thead><tr><th>Produk</th><th>Kategori</th><th>Sumber Pesanan</th><th>Komisi (Rp)</th><th>Items</th><th>Avg/Item</th><th>Status Terbanyak</th></tr></thead>
     <tbody>${rowsHtml}</tbody></table>
     </div>
   </div></td></tr>`;
