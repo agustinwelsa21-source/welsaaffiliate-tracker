@@ -1157,7 +1157,7 @@ function renderWsCard(w, idx){
         <div class="uploadicon">▤</div>
         <div class="uploadinfo">
           <div class="uploadtitle">Shopee Click Report</div>
-          <div class="uploadsub">Untuk hitung Real CPC & Real Rate di tab Atribusi. Bisa lebih dari 1 file.</div>
+          <div class="uploadsub">Untuk hitung Real CPC & Real Rate di tab Atribusi. Bisa pilih lebih dari 1 file sekaligus; upload baru menggantikan file lama.</div>
         </div>
         <label class="filebtn">Upload CSV<input type="file" accept=".csv" multiple style="display:none" onchange="setClickFiles('${w.id}', this.files)"></label>
       </div>
@@ -1172,7 +1172,7 @@ function setMetaFiles(id, fileList){
   const w=findWs(id); if(!w) return;
   const files = Array.from(fileList||[]);
   if(!files.length) return;
-  w.metaFiles = w.metaFiles.concat(files);
+  w.metaFiles = files; // upload baru = mengganti file lama (bisa pilih banyak file sekaligus)
   if(!w.name.trim()) w.name = baseName(files[0].name);
   renderUiWorkspaces();
 }
@@ -1193,7 +1193,7 @@ function setClickFiles(id, fileList){
   const w=findWs(id); if(!w) return;
   const files = Array.from(fileList||[]);
   if(!files.length) return;
-  w.clickFiles = w.clickFiles.concat(files);
+  w.clickFiles = files; // upload baru = mengganti file lama (bisa pilih banyak file sekaligus)
   renderUiWorkspaces();
 }
 function addShopeeAcc(id){ const w=findWs(id); if(w){ w.shopeeAccounts.push(newShopeeAcc()); renderUiWorkspaces(); } }
@@ -1461,10 +1461,10 @@ async function doExportHarian(akunFilter, label){
 function resetAll(){
   document.getElementById('dash').style.display='none';
   document.getElementById('upload').style.display='block';
-  // "Ganti file": kosongkan semua file lama (nama workspace/akun tetap) supaya upload baru bersih
-  // dan tidak ada referensi file lama yang sudah berubah di komputer
-  uiWorkspaces.forEach(w=>{ w.metaFiles=[]; w.clickFiles=[]; (w.shopeeAccounts||[]).forEach(a=>{ a.file=null; }); });
+  // "Ganti file": file yang sudah dipilih tetap ada (tidak perlu upload ulang semua),
+  // tinggal ganti file yang mau diganti lalu klik Mulai Analisa
   renderUiWorkspaces();
+  checkReady();
   renderHistory();
 }
 (function clearOnLoad(){
@@ -1690,7 +1690,10 @@ function renderOverview(){
     const inR = d => d && (!o.from || d>=o.from) && (!o.to || d<=o.to);
     const kn = rawClicks.filter(c=>inR(c.date) && (!selAkuns || selAkuns.has(c.akun))).length;
     const rate = o.totalClicks>0 ? kn/o.totalClicks*100 : 0;
-    shopeeKlikCard = {lbl:'Klik Shopee', val:fmtInt(kn), foot:'Klik rate: '+rate.toFixed(1)+'% · CPC: '+fmtRpFull(kn>0?o.totalSpend/kn:0), footColor:rateColor(rate), help:'Jumlah klik ke link affiliate Shopee, dari file Shopee Click Report. Klik rate = Klik Shopee ÷ Meta Clicks (makin tinggi makin bagus), CPC = Spend ÷ Klik Shopee.'};
+    const perAk = {};
+    rawClicks.filter(c=>inR(c.date)).forEach(c=>{ perAk[c.akun] = (perAk[c.akun]||0)+1; });
+    const perAkTxt = Object.keys(perAk).length>1 ? ' Rincian per workspace (semua workspace, periode ini): '+Object.keys(perAk).map(k=>((akunOrderMap[k]||k).replace(/^Akun/,'Workspace'))+' '+fmtInt(perAk[k])).join(', ')+'.' : '';
+    shopeeKlikCard = {lbl:'Klik Shopee', val:fmtInt(kn), foot:'Klik rate: '+rate.toFixed(1)+'% · CPC: '+fmtRpFull(kn>0?o.totalSpend/kn:0), footColor:rateColor(rate), help:'Jumlah klik ke link affiliate Shopee, dari file Shopee Click Report. Klik rate = Klik Shopee ÷ Meta Clicks (makin tinggi makin bagus), CPC = Spend ÷ Klik Shopee.'+perAkTxt};
   }
   const kpis = [
     {lbl:o.ppnOn?'Spend + PPN':'Spend', val:fmtRp(o.totalSpend), foot:o.ppnOn?('Biaya iklan Meta + PPN '+o.ppnPct+'%'):'Biaya iklan Meta', help:'Total biaya iklan Meta yang dikeluarkan pada periode ini'+(o.ppnOn?' (sudah termasuk PPN '+o.ppnPct+'%).':'.')},
