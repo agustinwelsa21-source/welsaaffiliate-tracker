@@ -558,7 +558,7 @@ select{flex:1;min-width:140px}
         <div class="tablehint">Klik baris platform untuk lihat breakdown per tag link</div>
       </div>
       <div class="foot" id="trafficNote" style="margin:2px 0 8px"></div>
-      <div class="foot" style="margin:0 0 14px;padding:10px 12px;background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.25);border-radius:8px;color:#e0b45a">⚠ Sumber trafik dikelompokkan jadi: <b>Facebook</b>, <b>Threads &amp; IG</b> (gabungan Threads + Instagram + "Websites" — karena in-app browser Threads/IG sering kebaca "Websites" sama Shopee), dan <b>Lainnya</b> (Others/Google Search/dll — traffic yang beda dan tidak diasumsikan dari Threads/IG).</div>
+      <div class="foot" style="margin:0 0 14px;padding:10px 12px;background:rgba(255,176,32,.08);border:1px solid rgba(255,176,32,.25);border-radius:8px;color:#e0b45a">⚠ Sumber trafik dikelompokkan jadi: <b>Facebook</b>, <b>Threads &amp; IG</b> (gabungan Threads + Instagram + "Websites" — karena in-app browser Threads/IG sering kebaca "Websites" sama Shopee), <b>TikTok</b> (komisi & order dari iklan TikTok — spend belum terhitung karena belum ada CSV TikTok Ads, jadi Net di baris ini = komisi), dan <b>Lainnya</b> (Others/Google Search/dll — traffic yang beda dan tidak diasumsikan dari Threads/IG).</div>
       <div class="tablewrap">
         <table id="trafficTable">
           <thead><tr>
@@ -1997,6 +1997,7 @@ function buildTrafficSourceRows(){
   // karena di setup iklannya, Threads selalu jalan bareng Instagram dalam 1 ad set.
   function trafficBucket(p){
     if(p==='Facebook') return 'Facebook';
+    if(/tik\s*tok/i.test(p||'')) return 'TikTok'; // iklan TikTok: komisi tercatat dari Shopee, spend belum ada (tidak ada CSV TikTok Ads)
     if(p==='Threads' || p==='Instagram' || p==='Websites' || p==='Website') return 'Threads & IG';
     return 'Lainnya'; // Others, Google Search, Tanpa Kategori, dll — bukan diasumsikan Threads/IG
   }
